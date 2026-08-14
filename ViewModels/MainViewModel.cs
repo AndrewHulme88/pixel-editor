@@ -20,7 +20,8 @@ public partial class MainViewModel : ViewModelBase
 
     public DocumentHistory History { get; }
 
-    public PixelColor BrushColor { get; } = new(49, 130, 206);
+    [ObservableProperty]
+    public partial PixelColor BrushColor { get; set; } = new(49, 130, 206);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBrushSelected))]

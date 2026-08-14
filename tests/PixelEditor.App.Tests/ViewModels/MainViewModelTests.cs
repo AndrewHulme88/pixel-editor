@@ -1,4 +1,5 @@
 using pixel_editor.ViewModels;
+using PixelEditor.Core.Documents;
 using PixelEditor.Core.Tools;
 using Xunit;
 
@@ -63,5 +64,33 @@ public sealed class MainViewModelTests
         Assert.True(viewModel.RedoCommand.CanExecute(null));
         viewModel.RedoCommand.Execute(null);
         Assert.Equal(viewModel.BrushColor, viewModel.Document.GetPixel(0, 0));
+    }
+
+    [Fact]
+    public void BrushColor_WhenChanged_NotifiesBindings()
+    {
+        var viewModel = new MainViewModel();
+        var selectedColor = new PixelColor(80, 120, 160, 200);
+        var changedProperties = new List<string?>();
+        viewModel.PropertyChanged += (_, e) => changedProperties.Add(e.PropertyName);
+
+        viewModel.BrushColor = selectedColor;
+
+        Assert.Equal(selectedColor, viewModel.BrushColor);
+        Assert.Contains(nameof(MainViewModel.BrushColor), changedProperties);
+    }
+
+    [Fact]
+    public void BrushColor_WhenSwitchingTools_RemainsSelected()
+    {
+        var viewModel = new MainViewModel
+        {
+            BrushColor = new PixelColor(80, 120, 160, 200)
+        };
+
+        viewModel.SelectEraserCommand.Execute(null);
+        viewModel.SelectBrushCommand.Execute(null);
+
+        Assert.Equal(new PixelColor(80, 120, 160, 200), viewModel.BrushColor);
     }
 }

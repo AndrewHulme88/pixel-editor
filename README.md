@@ -11,9 +11,9 @@ A desktop pixel art editor built with C# and Avalonia.
 - Basic editor layout
 - Save and load
 
-## Current milestone: undo and redo
+## Current milestone: colour picker
 
-The canvas supports one-pixel brush and eraser tools using the primary mouse button. Each click or drag is recorded as one reversible edit, with repeated changes to the same pixel compacted into a single history entry. History stores only changed pixels rather than full document snapshots. On Windows, use `Ctrl+Z` to undo and `Ctrl+Y` or `Ctrl+Shift+Z` to redo. On macOS, use `Cmd+Z` to undo and `Cmd+Shift+Z` or `Cmd+Y` to redo. The brush uses a temporary fixed blue colour until the colour picker is added.
+The canvas supports one-pixel brush and eraser tools using the primary mouse button. The toolbar colour picker controls the brush colour, including its alpha channel, while the eraser always writes transparent pixels without replacing the selected colour. Each click or drag is recorded as one reversible edit. On Windows, use `Ctrl+Z` to undo and `Ctrl+Y` or `Ctrl+Shift+Z` to redo. On macOS, use `Cmd+Z` to undo and `Cmd+Shift+Z` or `Cmd+Y` to redo.
 
 ## Project structure
 

@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="using:pixel_editor.Controls"
+        xmlns:converters="using:pixel_editor.Converters"
         xmlns:vm="using:pixel_editor.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -13,6 +14,10 @@
         MinHeight="480"
         Icon="/Assets/avalonia-logo.ico"
         Title="Pixel Editor">
+
+    <Window.Resources>
+        <converters:PixelColorConverter x:Key="PixelColorConverter" />
+    </Window.Resources>
 
     <Design.DataContext>
         <vm:MainViewModel />
@@ -34,6 +39,15 @@
                              HotKey="E"
                              IsChecked="{Binding IsEraserSelected, Mode=OneWay}"
                              Command="{Binding SelectEraserCommand}" />
+                <TextBlock Margin="8,0,0,0"
+                           VerticalAlignment="Center"
+                           Foreground="#E6E6E6"
+                           Text="Colour:" />
+                <ColorPicker Width="44"
+                             Height="32"
+                             IsAlphaEnabled="True"
+                             IsAlphaVisible="True"
+                             Color="{Binding BrushColor, Converter={StaticResource PixelColorConverter}, Mode=TwoWay}" />
                 <Border Width="1"
                         Height="24"
                         Margin="6,0"
