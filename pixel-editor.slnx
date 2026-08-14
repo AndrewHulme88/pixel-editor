@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="benchmarks/PixelEditor.Benchmarks/PixelEditor.Benchmarks.csproj" />
   <Project Path="pixel-editor.csproj" />
   <Project Path="src/PixelEditor.Core/PixelEditor.Core.csproj" />
   <Project Path="tests/PixelEditor.App.Tests/PixelEditor.App.Tests.csproj" />

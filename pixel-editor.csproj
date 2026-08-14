@@ -12,9 +12,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="src\**;tests\**" />
-    <EmbeddedResource Remove="src\**;tests\**" />
-    <None Remove="src\**;tests\**" />
+    <Compile Remove="src\**;tests\**;benchmarks\**" />
+    <EmbeddedResource Remove="src\**;tests\**;benchmarks\**" />
+    <None Remove="src\**;tests\**;benchmarks\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="PixelEditor.App.Tests" />
+    <InternalsVisibleTo Include="PixelEditor.Benchmarks" />
   </ItemGroup>
 
   <ItemGroup>

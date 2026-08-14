@@ -18,6 +18,7 @@ The canvas supports a one-pixel brush using the primary mouse button. Clicking p
 ## Project structure
 
 - `pixel-editor.csproj` — Avalonia desktop application
+- `benchmarks/PixelEditor.Benchmarks` — repeatable performance benchmarks
 - `src/PixelEditor.Core` — UI-independent editor and document logic
 - `tests/PixelEditor.App.Tests` — unit tests for rendering and application logic
 - `tests/PixelEditor.Core.Tests` — unit tests for the core library
@@ -41,4 +42,10 @@ dotnet run --project pixel-editor.csproj
 
 ## Performance testing
 
-Performance benchmarks will be added after the initial brush workflow is stable. Benchmarks will be kept separate from unit tests so test results remain deterministic.
+Performance benchmarks cover continuous brush strokes and full pixel-buffer conversion. Run them in Release mode:
+
+```sh
+dotnet run -c Release --project benchmarks/PixelEditor.Benchmarks -- --filter "*"
+```
+
+Benchmark results are machine-specific, so comparisons should use the same hardware and power profile. Unit tests remain separate and deterministic.
