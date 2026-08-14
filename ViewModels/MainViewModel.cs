@@ -1,8 +1,11 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using PixelEditor.Core.Documents;
+using PixelEditor.Core.Tools;
 
 namespace pixel_editor.ViewModels;
 
-public class MainViewModel : ViewModelBase
+public partial class MainViewModel : ViewModelBase
 {
     public MainViewModel()
     {
@@ -12,6 +15,21 @@ public class MainViewModel : ViewModelBase
     public PixelDocument Document { get; }
 
     public PixelColor BrushColor { get; } = new(49, 130, 206);
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBrushSelected))]
+    [NotifyPropertyChangedFor(nameof(IsEraserSelected))]
+    public partial EditorTool ActiveTool { get; set; } = EditorTool.Brush;
+
+    public bool IsBrushSelected => ActiveTool == EditorTool.Brush;
+
+    public bool IsEraserSelected => ActiveTool == EditorTool.Eraser;
+
+    [RelayCommand]
+    private void SelectBrush() => ActiveTool = EditorTool.Brush;
+
+    [RelayCommand]
+    private void SelectEraser() => ActiveTool = EditorTool.Eraser;
 
     private static PixelDocument CreateSampleDocument()
     {

@@ -11,9 +11,9 @@ A desktop pixel art editor built with C# and Avalonia.
 - Basic editor layout
 - Save and load
 
-## Current milestone: pixel brush
+## Current milestone: brush and eraser
 
-The canvas supports a one-pixel brush using the primary mouse button. Clicking paints one pixel, while dragging interpolates between pointer samples to produce continuous lines. Pixel change notifications update only the affected bitmap pixels. The brush uses a temporary fixed blue colour until the colour picker is added.
+The canvas supports one-pixel brush and eraser tools using the primary mouse button. Clicking changes one pixel, while dragging interpolates between pointer samples to produce continuous lines. Pixel change notifications update only the affected bitmap pixels. Use the toolbar or the `B` and `E` shortcuts to switch tools. The brush uses a temporary fixed blue colour until the colour picker is added.
 
 ## Project structure
 

@@ -60,4 +60,25 @@ public sealed class BrushToolTests
         Assert.Equal(Color, document.GetPixel(2, 3));
         Assert.Equal(Color, document.GetPixel(1, 4));
     }
+
+    [Fact]
+    public void DrawLine_WithTransparentColor_ErasesContinuousLine()
+    {
+        var document = new PixelDocument(6, 3);
+
+        for (var x = 0; x < document.Width; x++)
+        {
+            document.SetPixel(x, 1, Color);
+        }
+
+        BrushTool.DrawLine(document, 1, 1, 4, 1, PixelColor.Transparent);
+
+        for (var x = 1; x <= 4; x++)
+        {
+            Assert.Equal(PixelColor.Transparent, document.GetPixel(x, 1));
+        }
+
+        Assert.Equal(Color, document.GetPixel(0, 1));
+        Assert.Equal(Color, document.GetPixel(5, 1));
+    }
 }

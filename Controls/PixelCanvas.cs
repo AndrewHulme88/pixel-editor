@@ -7,6 +7,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using pixel_editor.Rendering;
+using pixel_editor.Tools;
 using PixelEditor.Core.Documents;
 using PixelEditor.Core.Tools;
 
@@ -27,7 +28,11 @@ public sealed class PixelCanvas : Control
             nameof(BrushColor),
             new PixelColor(49, 130, 206));
 
-    private const double CheckerSize = 12;
+    public static readonly StyledProperty<EditorTool> ActiveToolProperty =
+        AvaloniaProperty.Register<PixelCanvas, EditorTool>(
+            nameof(ActiveTool),
+            EditorTool.Brush);
+
     private static readonly IBrush CheckerLight = new SolidColorBrush(Color.FromRgb(214, 214, 214));
     private static readonly IBrush CheckerDark = new SolidColorBrush(Color.FromRgb(174, 174, 174));
     private static readonly IPen CanvasBorder = new Pen(new SolidColorBrush(Color.FromRgb(96, 96, 96)));
@@ -64,6 +69,12 @@ public sealed class PixelCanvas : Control
         set => SetValue(BrushColorProperty, value);
     }
 
+    public EditorTool ActiveTool
+    {
+        get => GetValue(ActiveToolProperty);
+        set => SetValue(ActiveToolProperty, value);
+    }
+
     public override void Render(DrawingContext context)
     {
         base.Render(context);
@@ -74,7 +85,7 @@ public sealed class PixelCanvas : Control
         }
 
         var layout = CanvasLayout.Calculate(Document.Width, Document.Height, Bounds.Size);
-        DrawTransparencyBackground(context, layout.Destination, new Rect(Bounds.Size));
+        DrawTransparencyBackground(context, layout, new Rect(Bounds.Size));
 
         var source = new Rect(0, 0, Document.Width, Document.Height);
         context.DrawImage(_bitmap, source, layout.Destination);
@@ -212,17 +223,18 @@ public sealed class PixelCanvas : Control
 
     private static void DrawTransparencyBackground(
         DrawingContext context,
-        Rect destination,
+        CanvasLayoutResult layout,
         Rect canvasBounds)
     {
+        var destination = layout.Destination;
         using var clip = context.PushClip(destination);
         context.FillRectangle(CheckerLight, destination);
 
         var visible = destination.Intersect(canvasBounds);
-        var firstColumn = Math.Max(0, (int)Math.Floor((visible.X - destination.X) / CheckerSize));
-        var firstRow = Math.Max(0, (int)Math.Floor((visible.Y - destination.Y) / CheckerSize));
-        var lastColumn = (int)Math.Ceiling((visible.Right - destination.X) / CheckerSize);
-        var lastRow = (int)Math.Ceiling((visible.Bottom - destination.Y) / CheckerSize);
+        var firstColumn = Math.Max(0, (int)Math.Floor((visible.X - destination.X) / layout.PixelScale));
+        var firstRow = Math.Max(0, (int)Math.Floor((visible.Y - destination.Y) / layout.PixelScale));
+        var lastColumn = (int)Math.Ceiling((visible.Right - destination.X) / layout.PixelScale);
+        var lastRow = (int)Math.Ceiling((visible.Bottom - destination.Y) / layout.PixelScale);
 
         for (var row = firstRow; row < lastRow; row++)
         {
@@ -233,13 +245,9 @@ public sealed class PixelCanvas : Control
                     continue;
                 }
 
-                var tile = new Rect(
-                    destination.X + (column * CheckerSize),
-                    destination.Y + (row * CheckerSize),
-                    CheckerSize,
-                    CheckerSize);
-
-                context.FillRectangle(CheckerDark, tile);
+                context.FillRectangle(
+                    CheckerDark,
+                    CanvasPixelGrid.GetPixelBounds(layout, column, row));
             }
         }
     }
@@ -276,6 +284,8 @@ public sealed class PixelCanvas : Control
             return;
         }
 
+        var color = ToolColorResolver.Resolve(ActiveTool, BrushColor);
+
         if (_lastPaintedPixel is { } previous)
         {
             BrushTool.DrawLine(
@@ -284,11 +294,11 @@ public sealed class PixelCanvas : Control
                 previous.Y,
                 coordinate.X,
                 coordinate.Y,
-                BrushColor);
+                color);
         }
         else
         {
-            Document.SetPixel(coordinate.X, coordinate.Y, BrushColor);
+            Document.SetPixel(coordinate.X, coordinate.Y, color);
         }
 
         _lastPaintedPixel = coordinate;
@@ -324,13 +334,10 @@ public sealed class PixelCanvas : Control
             return;
         }
 
-        var rectangle = new Rect(
-            layout.Destination.X + (pixel.X * layout.PixelScale),
-            layout.Destination.Y + (pixel.Y * layout.PixelScale),
-            layout.PixelScale,
-            layout.PixelScale);
-
-        context.DrawRectangle(HoverFill, HoverOutline, rectangle);
+        context.DrawRectangle(
+            HoverFill,
+            HoverOutline,
+            CanvasPixelGrid.GetPixelBounds(layout, pixel.X, pixel.Y));
     }
 
     private void SubscribeToDocument(PixelDocument? document)

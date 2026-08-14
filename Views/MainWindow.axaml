@@ -18,21 +18,42 @@
         <vm:MainViewModel />
     </Design.DataContext>
 
-    <Grid RowDefinitions="*,Auto"
+    <Grid RowDefinitions="Auto,*,Auto"
           Background="#242424">
-        <controls:PixelCanvas x:Name="EditorCanvas"
+        <Border Padding="12,8"
+                Background="#1B1B1B">
+            <StackPanel Orientation="Horizontal"
+                        Spacing="8">
+                <RadioButton Content="Brush (B)"
+                             GroupName="EditorTools"
+                             HotKey="B"
+                             IsChecked="{Binding IsBrushSelected, Mode=OneWay}"
+                             Command="{Binding SelectBrushCommand}" />
+                <RadioButton Content="Eraser (E)"
+                             GroupName="EditorTools"
+                             HotKey="E"
+                             IsChecked="{Binding IsEraserSelected, Mode=OneWay}"
+                             Command="{Binding SelectEraserCommand}" />
+            </StackPanel>
+        </Border>
+
+        <controls:PixelCanvas Grid.Row="1"
+                              x:Name="EditorCanvas"
                               Document="{Binding Document}"
                               BrushColor="{Binding BrushColor}"
+                              ActiveTool="{Binding ActiveTool}"
                               Margin="24" />
 
-        <Border Grid.Row="1"
+        <Border Grid.Row="2"
                 Padding="12,6"
                 Background="#1B1B1B">
             <StackPanel Orientation="Horizontal"
                         Spacing="6">
+                <TextBlock Foreground="#E6E6E6"
+                           Text="{Binding ActiveTool}" />
                 <TextBlock Margin="0,0,18,0"
                            Foreground="#E6E6E6"
-                           Text="Brush · Left-drag to draw" />
+                           Text="· Left-drag to draw" />
                 <TextBlock Foreground="#AFAFAF"
                            Text="Pixel:" />
                 <TextBlock MinWidth="60"
