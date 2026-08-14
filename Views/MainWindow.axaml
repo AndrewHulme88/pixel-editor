@@ -18,9 +18,24 @@
         <vm:MainViewModel />
     </Design.DataContext>
 
-    <Grid Background="#242424">
-        <controls:PixelCanvas Document="{Binding Document}"
+    <Grid RowDefinitions="*,Auto"
+          Background="#242424">
+        <controls:PixelCanvas x:Name="EditorCanvas"
+                              Document="{Binding Document}"
                               Margin="24" />
+
+        <Border Grid.Row="1"
+                Padding="12,6"
+                Background="#1B1B1B">
+            <StackPanel Orientation="Horizontal"
+                        Spacing="6">
+                <TextBlock Foreground="#AFAFAF"
+                           Text="Pixel:" />
+                <TextBlock MinWidth="60"
+                           Foreground="#E6E6E6"
+                           Text="{Binding HoveredPixelText, ElementName=EditorCanvas}" />
+            </StackPanel>
+        </Border>
     </Grid>
 
 </Window>

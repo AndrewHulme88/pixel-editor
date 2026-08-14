@@ -2,6 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
@@ -15,12 +16,20 @@ public sealed class PixelCanvas : Control
     public static readonly StyledProperty<PixelDocument?> DocumentProperty =
         AvaloniaProperty.Register<PixelCanvas, PixelDocument?>(nameof(Document));
 
+    public static readonly StyledProperty<string> HoveredPixelTextProperty =
+        AvaloniaProperty.Register<PixelCanvas, string>(
+            nameof(HoveredPixelText),
+            string.Empty);
+
     private const double CheckerSize = 12;
     private static readonly IBrush CheckerLight = new SolidColorBrush(Color.FromRgb(214, 214, 214));
     private static readonly IBrush CheckerDark = new SolidColorBrush(Color.FromRgb(174, 174, 174));
     private static readonly IPen CanvasBorder = new Pen(new SolidColorBrush(Color.FromRgb(96, 96, 96)));
+    private static readonly IBrush HoverFill = new SolidColorBrush(Color.FromArgb(48, 255, 255, 255));
+    private static readonly IPen HoverOutline = new Pen(Brushes.White, 1);
 
     private WriteableBitmap? _bitmap;
+    private PixelCoordinate? _hoveredPixel;
 
     public PixelCanvas()
     {
@@ -32,6 +41,12 @@ public sealed class PixelCanvas : Control
     {
         get => GetValue(DocumentProperty);
         set => SetValue(DocumentProperty, value);
+    }
+
+    public string HoveredPixelText
+    {
+        get => GetValue(HoveredPixelTextProperty);
+        private set => SetValue(HoveredPixelTextProperty, value);
     }
 
     public override void Render(DrawingContext context)
@@ -49,6 +64,19 @@ public sealed class PixelCanvas : Control
         var source = new Rect(0, 0, Document.Width, Document.Height);
         context.DrawImage(_bitmap, source, layout.Destination);
         context.DrawRectangle(null, CanvasBorder, layout.Destination);
+        DrawHoveredPixel(context, layout);
+    }
+
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        base.OnPointerMoved(e);
+        UpdateHoveredPixel(e.GetPosition(this));
+    }
+
+    protected override void OnPointerExited(PointerEventArgs e)
+    {
+        base.OnPointerExited(e);
+        SetHoveredPixel(null);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -57,6 +85,7 @@ public sealed class PixelCanvas : Control
 
         if (change.Property == DocumentProperty)
         {
+            SetHoveredPixel(null);
             RebuildBitmap();
         }
     }
@@ -142,6 +171,56 @@ public sealed class PixelCanvas : Control
                 context.FillRectangle(CheckerDark, tile);
             }
         }
+    }
+
+    private void UpdateHoveredPixel(Point pointerPosition)
+    {
+        if (Document is null)
+        {
+            SetHoveredPixel(null);
+            return;
+        }
+
+        var layout = CanvasLayout.Calculate(Document.Width, Document.Height, Bounds.Size);
+        var hasCoordinate = CanvasCoordinateMapper.TryMap(
+            pointerPosition,
+            layout,
+            Document.Width,
+            Document.Height,
+            out var coordinate);
+
+        SetHoveredPixel(hasCoordinate ? coordinate : null);
+    }
+
+    private void SetHoveredPixel(PixelCoordinate? coordinate)
+    {
+        if (_hoveredPixel == coordinate)
+        {
+            return;
+        }
+
+        _hoveredPixel = coordinate;
+        HoveredPixelText = coordinate is { } pixel
+            ? $"{pixel.X}, {pixel.Y}"
+            : string.Empty;
+
+        InvalidateVisual();
+    }
+
+    private void DrawHoveredPixel(DrawingContext context, CanvasLayoutResult layout)
+    {
+        if (_hoveredPixel is not { } pixel)
+        {
+            return;
+        }
+
+        var rectangle = new Rect(
+            layout.Destination.X + (pixel.X * layout.PixelScale),
+            layout.Destination.Y + (pixel.Y * layout.PixelScale),
+            layout.PixelScale,
+            layout.PixelScale);
+
+        context.DrawRectangle(HoverFill, HoverOutline, rectangle);
     }
 
     private void DisposeBitmap()

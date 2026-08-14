@@ -11,9 +11,9 @@ A desktop pixel art editor built with C# and Avalonia.
 - Basic editor layout
 - Save and load
 
-## Current milestone: read-only canvas rendering
+## Current milestone: pointer coordinate mapping
 
-The application displays a `PixelDocument` on a centred canvas with an integer pixel scale. Transparent areas use a checkerboard background and bitmap interpolation is disabled to keep pixel edges sharp. A temporary sample image makes the rendering behaviour visible until drawing tools are added.
+The canvas translates pointer positions into exact document coordinates while accounting for centring, integer scaling, clipping, and canvas boundaries. The hovered pixel is highlighted and its coordinates appear in the status bar. The document remains read-only until drawing tools are added.
 
 ## Project structure
 
