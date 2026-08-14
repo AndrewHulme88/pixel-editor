@@ -54,6 +54,37 @@ public sealed class PixelDocumentTests
         Assert.Equal(PixelColor.Transparent, document.GetPixel(1, 1));
     }
 
+    [Fact]
+    public void SetPixel_WhenColorChanges_RaisesPixelChanged()
+    {
+        var document = new PixelDocument(4, 3);
+        var color = new PixelColor(20, 40, 60, 128);
+        PixelChangedEventArgs? receivedChange = null;
+        document.PixelChanged += (_, change) => receivedChange = change;
+
+        document.SetPixel(2, 1, color);
+
+        Assert.NotNull(receivedChange);
+        Assert.Equal(2, receivedChange.X);
+        Assert.Equal(1, receivedChange.Y);
+        Assert.Equal(PixelColor.Transparent, receivedChange.PreviousColor);
+        Assert.Equal(color, receivedChange.Color);
+    }
+
+    [Fact]
+    public void SetPixel_WhenColorIsUnchanged_DoesNotRaisePixelChanged()
+    {
+        var document = new PixelDocument(4, 3);
+        var color = new PixelColor(20, 40, 60, 128);
+        document.SetPixel(2, 1, color);
+        var changeCount = 0;
+        document.PixelChanged += (_, _) => changeCount++;
+
+        document.SetPixel(2, 1, color);
+
+        Assert.Equal(0, changeCount);
+    }
+
     [Theory]
     [InlineData(-1, 0, "x")]
     [InlineData(4, 0, "x")]

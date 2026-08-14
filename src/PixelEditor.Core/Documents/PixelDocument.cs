@@ -5,6 +5,8 @@ public sealed class PixelDocument
 {
     private readonly PixelColor[] _pixels;
 
+    public event EventHandler<PixelChangedEventArgs>? PixelChanged;
+
     public PixelDocument(int width, int height)
     {
         if (width <= 0)
@@ -30,7 +32,16 @@ public sealed class PixelDocument
 
     public void SetPixel(int x, int y, PixelColor color)
     {
-        _pixels[GetIndex(x, y)] = color;
+        var index = GetIndex(x, y);
+        var previousColor = _pixels[index];
+
+        if (previousColor == color)
+        {
+            return;
+        }
+
+        _pixels[index] = color;
+        PixelChanged?.Invoke(this, new PixelChangedEventArgs(x, y, previousColor, color));
     }
 
     private int GetIndex(int x, int y)

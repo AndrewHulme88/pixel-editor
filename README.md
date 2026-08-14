@@ -11,9 +11,9 @@ A desktop pixel art editor built with C# and Avalonia.
 - Basic editor layout
 - Save and load
 
-## Current milestone: pointer coordinate mapping
+## Current milestone: pixel brush
 
-The canvas translates pointer positions into exact document coordinates while accounting for centring, integer scaling, clipping, and canvas boundaries. The hovered pixel is highlighted and its coordinates appear in the status bar. The document remains read-only until drawing tools are added.
+The canvas supports a one-pixel brush using the primary mouse button. Clicking paints one pixel, while dragging interpolates between pointer samples to produce continuous lines. Pixel change notifications update only the affected bitmap pixels. The brush uses a temporary fixed blue colour until the colour picker is added.
 
 ## Project structure
 
@@ -41,4 +41,4 @@ dotnet run --project pixel-editor.csproj
 
 ## Performance testing
 
-Performance benchmarks will be added with brush strokes, when editing creates meaningful rendering work to measure. Benchmarks will be kept separate from unit tests so test results remain deterministic.
+Performance benchmarks will be added after the initial brush workflow is stable. Benchmarks will be kept separate from unit tests so test results remain deterministic.

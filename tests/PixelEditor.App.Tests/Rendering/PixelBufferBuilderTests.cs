@@ -59,4 +59,16 @@ public sealed class PixelBufferBuilderTests
 
         Assert.Equal(new byte[] { 0, 0, 0, 0 }, buffer);
     }
+
+    [Fact]
+    public void WritePremultipliedBgra_UpdatesProvidedPixelBuffer()
+    {
+        Span<byte> pixel = stackalloc byte[PixelBufferBuilder.BytesPerPixel];
+
+        PixelBufferBuilder.WritePremultipliedBgra(
+            new PixelColor(100, 40, 200, 128),
+            pixel);
+
+        Assert.Equal(new byte[] { 100, 20, 50, 128 }, pixel.ToArray());
+    }
 }

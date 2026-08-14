@@ -11,6 +11,8 @@ public class MainViewModel : ViewModelBase
 
     public PixelDocument Document { get; }
 
+    public PixelColor BrushColor { get; } = new(49, 130, 206);
+
     private static PixelDocument CreateSampleDocument()
     {
         var document = new PixelDocument(16, 16);

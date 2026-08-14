@@ -8,6 +8,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using pixel_editor.Rendering;
 using PixelEditor.Core.Documents;
+using PixelEditor.Core.Tools;
 
 namespace pixel_editor.Controls;
 
@@ -21,6 +22,11 @@ public sealed class PixelCanvas : Control
             nameof(HoveredPixelText),
             string.Empty);
 
+    public static readonly StyledProperty<PixelColor> BrushColorProperty =
+        AvaloniaProperty.Register<PixelCanvas, PixelColor>(
+            nameof(BrushColor),
+            new PixelColor(49, 130, 206));
+
     private const double CheckerSize = 12;
     private static readonly IBrush CheckerLight = new SolidColorBrush(Color.FromRgb(214, 214, 214));
     private static readonly IBrush CheckerDark = new SolidColorBrush(Color.FromRgb(174, 174, 174));
@@ -29,7 +35,10 @@ public sealed class PixelCanvas : Control
     private static readonly IPen HoverOutline = new Pen(Brushes.White, 1);
 
     private WriteableBitmap? _bitmap;
+    private PixelDocument? _subscribedDocument;
     private PixelCoordinate? _hoveredPixel;
+    private PixelCoordinate? _lastPaintedPixel;
+    private bool _isDrawing;
 
     public PixelCanvas()
     {
@@ -47,6 +56,12 @@ public sealed class PixelCanvas : Control
     {
         get => GetValue(HoveredPixelTextProperty);
         private set => SetValue(HoveredPixelTextProperty, value);
+    }
+
+    public PixelColor BrushColor
+    {
+        get => GetValue(BrushColorProperty);
+        set => SetValue(BrushColorProperty, value);
     }
 
     public override void Render(DrawingContext context)
@@ -70,7 +85,60 @@ public sealed class PixelCanvas : Control
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
-        UpdateHoveredPixel(e.GetPosition(this));
+
+        var pointerPosition = e.GetPosition(this);
+        UpdateHoveredPixel(pointerPosition);
+
+        if (!_isDrawing)
+        {
+            return;
+        }
+
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            EndBrushStroke(e.Pointer);
+            return;
+        }
+
+        PaintTo(pointerPosition);
+    }
+
+    protected override void OnPointerPressed(PointerPressedEventArgs e)
+    {
+        base.OnPointerPressed(e);
+
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed ||
+            !TryGetPixelCoordinate(e.GetPosition(this), out _))
+        {
+            return;
+        }
+
+        _isDrawing = true;
+        _lastPaintedPixel = null;
+        e.Pointer.Capture(this);
+        PaintTo(e.GetPosition(this));
+        e.Handled = true;
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        base.OnPointerReleased(e);
+
+        if (!_isDrawing)
+        {
+            return;
+        }
+
+        PaintTo(e.GetPosition(this));
+        EndBrushStroke(e.Pointer);
+        e.Handled = true;
+    }
+
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        _isDrawing = false;
+        _lastPaintedPixel = null;
+        base.OnPointerCaptureLost(e);
     }
 
     protected override void OnPointerExited(PointerEventArgs e)
@@ -85,6 +153,7 @@ public sealed class PixelCanvas : Control
 
         if (change.Property == DocumentProperty)
         {
+            SubscribeToDocument(Document);
             SetHoveredPixel(null);
             RebuildBitmap();
         }
@@ -93,6 +162,7 @@ public sealed class PixelCanvas : Control
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        SubscribeToDocument(Document);
 
         if (_bitmap is null && Document is not null)
         {
@@ -102,6 +172,7 @@ public sealed class PixelCanvas : Control
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        SubscribeToDocument(null);
         DisposeBitmap();
         base.OnDetachedFromVisualTree(e);
     }
@@ -175,21 +246,60 @@ public sealed class PixelCanvas : Control
 
     private void UpdateHoveredPixel(Point pointerPosition)
     {
+        SetHoveredPixel(TryGetPixelCoordinate(pointerPosition, out var coordinate)
+            ? coordinate
+            : null);
+    }
+
+    private bool TryGetPixelCoordinate(Point pointerPosition, out PixelCoordinate coordinate)
+    {
         if (Document is null)
         {
-            SetHoveredPixel(null);
-            return;
+            coordinate = default;
+            return false;
         }
 
         var layout = CanvasLayout.Calculate(Document.Width, Document.Height, Bounds.Size);
-        var hasCoordinate = CanvasCoordinateMapper.TryMap(
+        return CanvasCoordinateMapper.TryMap(
             pointerPosition,
             layout,
             Document.Width,
             Document.Height,
-            out var coordinate);
+            out coordinate);
+    }
 
-        SetHoveredPixel(hasCoordinate ? coordinate : null);
+    private void PaintTo(Point pointerPosition)
+    {
+        if (Document is null || !TryGetPixelCoordinate(pointerPosition, out var coordinate))
+        {
+            _lastPaintedPixel = null;
+            return;
+        }
+
+        if (_lastPaintedPixel is { } previous)
+        {
+            BrushTool.DrawLine(
+                Document,
+                previous.X,
+                previous.Y,
+                coordinate.X,
+                coordinate.Y,
+                BrushColor);
+        }
+        else
+        {
+            Document.SetPixel(coordinate.X, coordinate.Y, BrushColor);
+        }
+
+        _lastPaintedPixel = coordinate;
+        SetHoveredPixel(coordinate);
+    }
+
+    private void EndBrushStroke(IPointer pointer)
+    {
+        _isDrawing = false;
+        _lastPaintedPixel = null;
+        pointer.Capture(null);
     }
 
     private void SetHoveredPixel(PixelCoordinate? coordinate)
@@ -221,6 +331,49 @@ public sealed class PixelCanvas : Control
             layout.PixelScale);
 
         context.DrawRectangle(HoverFill, HoverOutline, rectangle);
+    }
+
+    private void SubscribeToDocument(PixelDocument? document)
+    {
+        if (ReferenceEquals(_subscribedDocument, document))
+        {
+            return;
+        }
+
+        if (_subscribedDocument is not null)
+        {
+            _subscribedDocument.PixelChanged -= OnPixelChanged;
+        }
+
+        _subscribedDocument = document;
+
+        if (_subscribedDocument is not null)
+        {
+            _subscribedDocument.PixelChanged += OnPixelChanged;
+        }
+    }
+
+    private void OnPixelChanged(object? sender, PixelChangedEventArgs e)
+    {
+        if (_bitmap is null || !ReferenceEquals(sender, Document))
+        {
+            return;
+        }
+
+        using var framebuffer = _bitmap.Lock();
+        var destination = IntPtr.Add(
+            framebuffer.Address,
+            (e.Y * framebuffer.RowBytes) + (e.X * PixelBufferBuilder.BytesPerPixel));
+
+        Span<byte> pixel = stackalloc byte[PixelBufferBuilder.BytesPerPixel];
+        PixelBufferBuilder.WritePremultipliedBgra(e.Color, pixel);
+
+        for (var index = 0; index < pixel.Length; index++)
+        {
+            Marshal.WriteByte(destination, index, pixel[index]);
+        }
+
+        InvalidateVisual();
     }
 
     private void DisposeBitmap()
