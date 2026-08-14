@@ -34,6 +34,14 @@
                              HotKey="E"
                              IsChecked="{Binding IsEraserSelected, Mode=OneWay}"
                              Command="{Binding SelectEraserCommand}" />
+                <Border Width="1"
+                        Height="24"
+                        Margin="6,0"
+                        Background="#4A4A4A" />
+                <Button Content="Undo"
+                        Command="{Binding UndoCommand}" />
+                <Button Content="Redo"
+                        Command="{Binding RedoCommand}" />
             </StackPanel>
         </Border>
 
@@ -42,6 +50,7 @@
                               Document="{Binding Document}"
                               BrushColor="{Binding BrushColor}"
                               ActiveTool="{Binding ActiveTool}"
+                              History="{Binding History}"
                               Margin="24" />
 
         <Border Grid.Row="2"

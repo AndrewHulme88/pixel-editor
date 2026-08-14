@@ -9,6 +9,7 @@ using Avalonia.Platform;
 using pixel_editor.Rendering;
 using pixel_editor.Tools;
 using PixelEditor.Core.Documents;
+using PixelEditor.Core.History;
 using PixelEditor.Core.Tools;
 
 namespace pixel_editor.Controls;
@@ -33,6 +34,9 @@ public sealed class PixelCanvas : Control
             nameof(ActiveTool),
             EditorTool.Brush);
 
+    public static readonly StyledProperty<DocumentHistory?> HistoryProperty =
+        AvaloniaProperty.Register<PixelCanvas, DocumentHistory?>(nameof(History));
+
     private static readonly IBrush CheckerLight = new SolidColorBrush(Color.FromRgb(214, 214, 214));
     private static readonly IBrush CheckerDark = new SolidColorBrush(Color.FromRgb(174, 174, 174));
     private static readonly IPen CanvasBorder = new Pen(new SolidColorBrush(Color.FromRgb(96, 96, 96)));
@@ -43,6 +47,7 @@ public sealed class PixelCanvas : Control
     private PixelDocument? _subscribedDocument;
     private PixelCoordinate? _hoveredPixel;
     private PixelCoordinate? _lastPaintedPixel;
+    private DocumentHistory? _activeHistory;
     private bool _isDrawing;
 
     public PixelCanvas()
@@ -73,6 +78,12 @@ public sealed class PixelCanvas : Control
     {
         get => GetValue(ActiveToolProperty);
         set => SetValue(ActiveToolProperty, value);
+    }
+
+    public DocumentHistory? History
+    {
+        get => GetValue(HistoryProperty);
+        set => SetValue(HistoryProperty, value);
     }
 
     public override void Render(DrawingContext context)
@@ -118,12 +129,15 @@ public sealed class PixelCanvas : Control
     {
         base.OnPointerPressed(e);
 
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed ||
+        if (Document is not { } document ||
+            !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed ||
             !TryGetPixelCoordinate(e.GetPosition(this), out _))
         {
             return;
         }
 
+        _activeHistory = History;
+        _activeHistory?.BeginChangeSet(document);
         _isDrawing = true;
         _lastPaintedPixel = null;
         e.Pointer.Capture(this);
@@ -147,8 +161,7 @@ public sealed class PixelCanvas : Control
 
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
     {
-        _isDrawing = false;
-        _lastPaintedPixel = null;
+        CompleteStroke();
         base.OnPointerCaptureLost(e);
     }
 
@@ -164,6 +177,7 @@ public sealed class PixelCanvas : Control
 
         if (change.Property == DocumentProperty)
         {
+            CompleteStroke();
             SubscribeToDocument(Document);
             SetHoveredPixel(null);
             RebuildBitmap();
@@ -183,6 +197,7 @@ public sealed class PixelCanvas : Control
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        CompleteStroke();
         SubscribeToDocument(null);
         DisposeBitmap();
         base.OnDetachedFromVisualTree(e);
@@ -307,9 +322,21 @@ public sealed class PixelCanvas : Control
 
     private void EndBrushStroke(IPointer pointer)
     {
+        CompleteStroke();
+        pointer.Capture(null);
+    }
+
+    private void CompleteStroke()
+    {
+        if (!_isDrawing)
+        {
+            return;
+        }
+
         _isDrawing = false;
         _lastPaintedPixel = null;
-        pointer.Capture(null);
+        _activeHistory?.CommitChangeSet();
+        _activeHistory = null;
     }
 
     private void SetHoveredPixel(PixelCoordinate? coordinate)

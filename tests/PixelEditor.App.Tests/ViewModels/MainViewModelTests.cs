@@ -42,4 +42,26 @@ public sealed class MainViewModelTests
         Assert.True(viewModel.IsBrushSelected);
         Assert.False(viewModel.IsEraserSelected);
     }
+
+    [Fact]
+    public void UndoAndRedoCommands_FollowDocumentHistory()
+    {
+        var viewModel = new MainViewModel();
+        var originalColor = viewModel.Document.GetPixel(0, 0);
+
+        Assert.False(viewModel.UndoCommand.CanExecute(null));
+        Assert.False(viewModel.RedoCommand.CanExecute(null));
+
+        viewModel.History.BeginChangeSet(viewModel.Document);
+        viewModel.Document.SetPixel(0, 0, viewModel.BrushColor);
+        viewModel.History.CommitChangeSet();
+
+        Assert.True(viewModel.UndoCommand.CanExecute(null));
+        viewModel.UndoCommand.Execute(null);
+        Assert.Equal(originalColor, viewModel.Document.GetPixel(0, 0));
+
+        Assert.True(viewModel.RedoCommand.CanExecute(null));
+        viewModel.RedoCommand.Execute(null);
+        Assert.Equal(viewModel.BrushColor, viewModel.Document.GetPixel(0, 0));
+    }
 }

@@ -1,6 +1,8 @@
+using System;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PixelEditor.Core.Documents;
+using PixelEditor.Core.History;
 using PixelEditor.Core.Tools;
 
 namespace pixel_editor.ViewModels;
@@ -10,9 +12,13 @@ public partial class MainViewModel : ViewModelBase
     public MainViewModel()
     {
         Document = CreateSampleDocument();
+        History = new DocumentHistory();
+        History.Changed += OnHistoryChanged;
     }
 
     public PixelDocument Document { get; }
+
+    public DocumentHistory History { get; }
 
     public PixelColor BrushColor { get; } = new(49, 130, 206);
 
@@ -25,11 +31,29 @@ public partial class MainViewModel : ViewModelBase
 
     public bool IsEraserSelected => ActiveTool == EditorTool.Eraser;
 
+    public bool CanUndo => History.CanUndo;
+
+    public bool CanRedo => History.CanRedo;
+
     [RelayCommand]
     private void SelectBrush() => ActiveTool = EditorTool.Brush;
 
     [RelayCommand]
     private void SelectEraser() => ActiveTool = EditorTool.Eraser;
+
+    [RelayCommand(CanExecute = nameof(CanUndo))]
+    private void Undo() => History.Undo();
+
+    [RelayCommand(CanExecute = nameof(CanRedo))]
+    private void Redo() => History.Redo();
+
+    private void OnHistoryChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(CanUndo));
+        OnPropertyChanged(nameof(CanRedo));
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
+    }
 
     private static PixelDocument CreateSampleDocument()
     {

@@ -11,9 +11,9 @@ A desktop pixel art editor built with C# and Avalonia.
 - Basic editor layout
 - Save and load
 
-## Current milestone: brush and eraser
+## Current milestone: undo and redo
 
-The canvas supports one-pixel brush and eraser tools using the primary mouse button. Clicking changes one pixel, while dragging interpolates between pointer samples to produce continuous lines. Pixel change notifications update only the affected bitmap pixels. Use the toolbar or the `B` and `E` shortcuts to switch tools. The brush uses a temporary fixed blue colour until the colour picker is added.
+The canvas supports one-pixel brush and eraser tools using the primary mouse button. Each click or drag is recorded as one reversible edit, with repeated changes to the same pixel compacted into a single history entry. History stores only changed pixels rather than full document snapshots. On Windows, use `Ctrl+Z` to undo and `Ctrl+Y` or `Ctrl+Shift+Z` to redo. On macOS, use `Cmd+Z` to undo and `Cmd+Shift+Z` or `Cmd+Y` to redo. The brush uses a temporary fixed blue colour until the colour picker is added.
 
 ## Project structure
 
@@ -42,7 +42,7 @@ dotnet run --project pixel-editor.csproj
 
 ## Performance testing
 
-Performance benchmarks cover continuous brush strokes and full pixel-buffer conversion. Run them in Release mode:
+Performance benchmarks cover continuous brush strokes, undo history, and full pixel-buffer conversion. Run them in Release mode:
 
 ```sh
 dotnet run -c Release --project benchmarks/PixelEditor.Benchmarks -- --filter "*"
