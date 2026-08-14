@@ -1,0 +1,20 @@
+# .NET build output
+**/bin/
+**/obj/
+
+# Test and benchmark output
+TestResults/
+coverage/
+BenchmarkDotNet.Artifacts/
+
+# IDE-specific files
+.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Operating system files
+.DS_Store
+Thumbs.db
