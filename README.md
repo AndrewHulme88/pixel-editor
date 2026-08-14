@@ -11,14 +11,15 @@ A desktop pixel art editor built with C# and Avalonia.
 - Basic editor layout
 - Save and load
 
-## Current milestone: document foundation
+## Current milestone: read-only canvas rendering
 
-The user can represent an image as a fixed size grid of RGBA pixels. New documents are transparent, and individual pixels can be read and changed. This logic lives in a UI-independent library so it can be tested and extended without depending on Avalonia.
+The application displays a `PixelDocument` on a centred canvas with an integer pixel scale. Transparent areas use a checkerboard background and bitmap interpolation is disabled to keep pixel edges sharp. A temporary sample image makes the rendering behaviour visible until drawing tools are added.
 
 ## Project structure
 
 - `pixel-editor.csproj` — Avalonia desktop application
 - `src/PixelEditor.Core` — UI-independent editor and document logic
+- `tests/PixelEditor.App.Tests` — unit tests for rendering and application logic
 - `tests/PixelEditor.Core.Tests` — unit tests for the core library
 
 ## Requirements
@@ -40,4 +41,4 @@ dotnet run --project pixel-editor.csproj
 
 ## Performance testing
 
-Performance benchmarks will be added when brush strokes and canvas rendering provide meaningful operations to measure. Benchmarks will be kept separate from unit tests so test results remain deterministic.
+Performance benchmarks will be added with brush strokes, when editing creates meaningful rendering work to measure. Benchmarks will be kept separate from unit tests so test results remain deterministic.
