@@ -11,9 +11,9 @@ A desktop pixel art editor built with C# and Avalonia.
 - Basic editor layout
 - Save and load
 
-## Current milestone: colour picker
+## Current milestone: PNG saving and loading
 
-The canvas supports one-pixel brush and eraser tools using the primary mouse button. The toolbar colour picker controls the brush colour, including its alpha channel, while the eraser always writes transparent pixels without replacing the selected colour. Each click or drag is recorded as one reversible edit. On Windows, use `Ctrl+Z` to undo and `Ctrl+Y` or `Ctrl+Shift+Z` to redo. On macOS, use `Cmd+Z` to undo and `Cmd+Shift+Z` or `Cmd+Y` to redo.
+The editor has a tested PNG persistence foundation built on SkiaSharp. Documents can be encoded to and decoded from lossless PNG streams while preserving exact RGBA values, including partial transparency. File-dialog integration is the next part of this milestone.
 
 ## Project structure
 
@@ -42,7 +42,7 @@ dotnet run --project pixel-editor.csproj
 
 ## Performance testing
 
-Performance benchmarks cover continuous brush strokes, undo history, and full pixel-buffer conversion. Run them in Release mode:
+Performance benchmarks cover continuous brush strokes, undo history, pixel-buffer conversion, and PNG persistence. Run them in Release mode:
 
 ```sh
 dotnet run -c Release --project benchmarks/PixelEditor.Benchmarks -- --filter "*"
