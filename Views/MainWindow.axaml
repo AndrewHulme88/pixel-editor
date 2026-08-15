@@ -13,7 +13,7 @@
         MinWidth="640"
         MinHeight="480"
         Icon="/Assets/avalonia-logo.ico"
-        Title="Pixel Editor">
+        Title="Untitled - Pixel Editor">
 
     <Window.Resources>
         <converters:PixelColorConverter x:Key="PixelColorConverter" />
@@ -23,9 +23,22 @@
         <vm:MainViewModel />
     </Design.DataContext>
 
-    <Grid RowDefinitions="Auto,*,Auto"
+    <Grid RowDefinitions="Auto,Auto,*,Auto"
           Background="#242424">
-        <Border Padding="12,8"
+        <Menu Background="#161616">
+            <MenuItem Header="_File">
+                <MenuItem Header="_Open..."
+                          Click="Open_OnClick" />
+                <Separator />
+                <MenuItem Header="_Save"
+                          Click="Save_OnClick" />
+                <MenuItem Header="Save _As..."
+                          Click="SaveAs_OnClick" />
+            </MenuItem>
+        </Menu>
+
+        <Border Grid.Row="1"
+                Padding="12,8"
                 Background="#1B1B1B">
             <StackPanel Orientation="Horizontal"
                         Spacing="8">
@@ -59,7 +72,7 @@
             </StackPanel>
         </Border>
 
-        <controls:PixelCanvas Grid.Row="1"
+        <controls:PixelCanvas Grid.Row="2"
                               x:Name="EditorCanvas"
                               Document="{Binding Document}"
                               BrushColor="{Binding BrushColor}"
@@ -67,22 +80,28 @@
                               History="{Binding History}"
                               Margin="24" />
 
-        <Border Grid.Row="2"
+        <Border Grid.Row="3"
                 Padding="12,6"
                 Background="#1B1B1B">
-            <StackPanel Orientation="Horizontal"
-                        Spacing="6">
-                <TextBlock Foreground="#E6E6E6"
-                           Text="{Binding ActiveTool}" />
-                <TextBlock Margin="0,0,18,0"
-                           Foreground="#E6E6E6"
-                           Text="· Left-drag to draw" />
-                <TextBlock Foreground="#AFAFAF"
-                           Text="Pixel:" />
-                <TextBlock MinWidth="60"
-                           Foreground="#E6E6E6"
-                           Text="{Binding HoveredPixelText, ElementName=EditorCanvas}" />
-            </StackPanel>
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Orientation="Horizontal"
+                            Spacing="6">
+                    <TextBlock Foreground="#E6E6E6"
+                               Text="{Binding ActiveTool}" />
+                    <TextBlock Margin="0,0,18,0"
+                               Foreground="#E6E6E6"
+                               Text="· Left-drag to draw" />
+                    <TextBlock Foreground="#AFAFAF"
+                               Text="Pixel:" />
+                    <TextBlock MinWidth="60"
+                               Foreground="#E6E6E6"
+                               Text="{Binding HoveredPixelText, ElementName=EditorCanvas}" />
+                </StackPanel>
+                <TextBlock Grid.Column="1"
+                           x:Name="FileStatusText"
+                           Margin="16,0,0,0"
+                           Foreground="#AFAFAF" />
+            </Grid>
         </Border>
     </Grid>
 

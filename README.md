@@ -13,7 +13,9 @@ A desktop pixel art editor built with C# and Avalonia.
 
 ## Current milestone: PNG saving and loading
 
-The editor has a tested PNG persistence foundation built on SkiaSharp. Documents can be encoded to and decoded from lossless PNG streams while preserving exact RGBA values, including partial transparency. File-dialog integration is the next part of this milestone.
+The editor can open, save, and save as PNG through native file dialogs. Loading replaces the active document and clears its undo and redo history. PNG encoding and decoding use SkiaSharp and preserve exact RGBA values, including partial transparency.
+
+Use `Ctrl+O`, `Ctrl+S`, and `Ctrl+Shift+S` for file operations on Windows. On macOS, use the equivalent `Cmd` shortcuts.
 
 ## Project structure
 

@@ -5,6 +5,9 @@ namespace pixel_editor.Input;
 internal enum EditorShortcut
 {
     None,
+    Open,
+    Save,
+    SaveAs,
     Undo,
     Redo
 }
@@ -16,6 +19,21 @@ internal static class EditorKeyboardShortcuts
         var commandModifier = isMacOs
             ? KeyModifiers.Meta
             : KeyModifiers.Control;
+
+        if (key == Key.O && modifiers == commandModifier)
+        {
+            return EditorShortcut.Open;
+        }
+
+        if (key == Key.S && modifiers == commandModifier)
+        {
+            return EditorShortcut.Save;
+        }
+
+        if (key == Key.S && modifiers == (commandModifier | KeyModifiers.Shift))
+        {
+            return EditorShortcut.SaveAs;
+        }
 
         if (key == Key.Z && modifiers == commandModifier)
         {

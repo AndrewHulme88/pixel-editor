@@ -16,7 +16,8 @@ public partial class MainViewModel : ViewModelBase
         History.Changed += OnHistoryChanged;
     }
 
-    public PixelDocument Document { get; }
+    [ObservableProperty]
+    public partial PixelDocument Document { get; private set; }
 
     public DocumentHistory History { get; }
 
@@ -47,6 +48,14 @@ public partial class MainViewModel : ViewModelBase
 
     [RelayCommand(CanExecute = nameof(CanRedo))]
     private void Redo() => History.Redo();
+
+    public void ReplaceDocument(PixelDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        History.Clear();
+        Document = document;
+    }
 
     private void OnHistoryChanged(object? sender, EventArgs e)
     {

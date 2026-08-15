@@ -67,6 +67,35 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public void ReplaceDocument_ReplacesDocumentAndClearsHistory()
+    {
+        var viewModel = new MainViewModel();
+        var replacement = new PixelDocument(3, 2);
+        var changedProperties = new List<string?>();
+        viewModel.PropertyChanged += (_, e) => changedProperties.Add(e.PropertyName);
+
+        viewModel.History.BeginChangeSet(viewModel.Document);
+        viewModel.Document.SetPixel(0, 0, viewModel.BrushColor);
+        viewModel.History.CommitChangeSet();
+        Assert.True(viewModel.CanUndo);
+
+        viewModel.ReplaceDocument(replacement);
+
+        Assert.Same(replacement, viewModel.Document);
+        Assert.False(viewModel.CanUndo);
+        Assert.False(viewModel.CanRedo);
+        Assert.Contains(nameof(MainViewModel.Document), changedProperties);
+    }
+
+    [Fact]
+    public void ReplaceDocument_WithNull_Throws()
+    {
+        var viewModel = new MainViewModel();
+
+        Assert.Throws<ArgumentNullException>(() => viewModel.ReplaceDocument(null!));
+    }
+
+    [Fact]
     public void BrushColor_WhenChanged_NotifiesBindings()
     {
         var viewModel = new MainViewModel();
