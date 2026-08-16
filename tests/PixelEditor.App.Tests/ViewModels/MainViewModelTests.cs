@@ -15,6 +15,8 @@ public sealed class MainViewModelTests
         Assert.Equal(EditorTool.Brush, viewModel.ActiveTool);
         Assert.True(viewModel.IsBrushSelected);
         Assert.False(viewModel.IsEraserSelected);
+        Assert.False(viewModel.IsDirty);
+        Assert.Equal("Untitled - Pixel Editor", viewModel.WindowTitle);
     }
 
     [Fact]
@@ -79,9 +81,11 @@ public sealed class MainViewModelTests
         viewModel.History.CommitChangeSet();
         Assert.True(viewModel.CanUndo);
 
-        viewModel.ReplaceDocument(replacement);
+        viewModel.ReplaceDocument(replacement, "opened.png");
 
         Assert.Same(replacement, viewModel.Document);
+        Assert.Equal("opened.png", viewModel.DocumentName);
+        Assert.False(viewModel.IsDirty);
         Assert.False(viewModel.CanUndo);
         Assert.False(viewModel.CanRedo);
         Assert.Contains(nameof(MainViewModel.Document), changedProperties);
@@ -92,7 +96,52 @@ public sealed class MainViewModelTests
     {
         var viewModel = new MainViewModel();
 
-        Assert.Throws<ArgumentNullException>(() => viewModel.ReplaceDocument(null!));
+        Assert.Throws<ArgumentNullException>(() => viewModel.ReplaceDocument(null!, "opened.png"));
+    }
+
+    [Fact]
+    public void DocumentState_TracksEditsSaveUndoAndRedo()
+    {
+        var viewModel = new MainViewModel();
+
+        RecordPixelEdit(viewModel, 0, 0);
+
+        Assert.True(viewModel.IsDirty);
+        Assert.Equal("Untitled* - Pixel Editor", viewModel.WindowTitle);
+
+        viewModel.UndoCommand.Execute(null);
+        Assert.False(viewModel.IsDirty);
+
+        viewModel.RedoCommand.Execute(null);
+        Assert.True(viewModel.IsDirty);
+
+        viewModel.MarkDocumentSaved("art.png");
+
+        Assert.False(viewModel.IsDirty);
+        Assert.Equal("art.png - Pixel Editor", viewModel.WindowTitle);
+
+        RecordPixelEdit(viewModel, 1, 0);
+        Assert.True(viewModel.IsDirty);
+
+        viewModel.UndoCommand.Execute(null);
+        Assert.False(viewModel.IsDirty);
+
+        viewModel.RedoCommand.Execute(null);
+        Assert.True(viewModel.IsDirty);
+    }
+
+    [Fact]
+    public void DocumentState_NewBranchDoesNotMatchDiscardedSavedState()
+    {
+        var viewModel = new MainViewModel();
+
+        RecordPixelEdit(viewModel, 0, 0);
+        viewModel.MarkDocumentSaved("art.png");
+        viewModel.UndoCommand.Execute(null);
+
+        RecordPixelEdit(viewModel, 1, 0);
+
+        Assert.True(viewModel.IsDirty);
     }
 
     [Fact]
@@ -121,5 +170,12 @@ public sealed class MainViewModelTests
         viewModel.SelectBrushCommand.Execute(null);
 
         Assert.Equal(new PixelColor(80, 120, 160, 200), viewModel.BrushColor);
+    }
+
+    private static void RecordPixelEdit(MainViewModel viewModel, int x, int y)
+    {
+        viewModel.History.BeginChangeSet(viewModel.Document);
+        viewModel.Document.SetPixel(x, y, viewModel.BrushColor);
+        viewModel.History.CommitChangeSet();
     }
 }

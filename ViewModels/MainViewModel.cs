@@ -9,10 +9,13 @@ namespace pixel_editor.ViewModels;
 
 public partial class MainViewModel : ViewModelBase
 {
+    private long _savedHistoryStateId;
+
     public MainViewModel()
     {
         Document = CreateSampleDocument();
         History = new DocumentHistory();
+        _savedHistoryStateId = History.CurrentStateId;
         History.Changed += OnHistoryChanged;
     }
 
@@ -20,6 +23,14 @@ public partial class MainViewModel : ViewModelBase
     public partial PixelDocument Document { get; private set; }
 
     public DocumentHistory History { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(WindowTitle))]
+    public partial string DocumentName { get; private set; } = "Untitled";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(WindowTitle))]
+    public partial bool IsDirty { get; private set; }
 
     [ObservableProperty]
     public partial PixelColor BrushColor { get; set; } = new(49, 130, 206);
@@ -37,6 +48,8 @@ public partial class MainViewModel : ViewModelBase
 
     public bool CanRedo => History.CanRedo;
 
+    public string WindowTitle => $"{DocumentName}{(IsDirty ? "*" : string.Empty)} - Pixel Editor";
+
     [RelayCommand]
     private void SelectBrush() => ActiveTool = EditorTool.Brush;
 
@@ -49,12 +62,25 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(CanRedo))]
     private void Redo() => History.Redo();
 
-    public void ReplaceDocument(PixelDocument document)
+    public void ReplaceDocument(PixelDocument document, string documentName)
     {
         ArgumentNullException.ThrowIfNull(document);
+        ArgumentException.ThrowIfNullOrWhiteSpace(documentName);
 
         History.Clear();
         Document = document;
+        DocumentName = documentName;
+        _savedHistoryStateId = History.CurrentStateId;
+        UpdateDirtyState();
+    }
+
+    public void MarkDocumentSaved(string documentName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(documentName);
+
+        DocumentName = documentName;
+        _savedHistoryStateId = History.CurrentStateId;
+        UpdateDirtyState();
     }
 
     private void OnHistoryChanged(object? sender, EventArgs e)
@@ -63,7 +89,11 @@ public partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanRedo));
         UndoCommand.NotifyCanExecuteChanged();
         RedoCommand.NotifyCanExecuteChanged();
+        UpdateDirtyState();
     }
+
+    private void UpdateDirtyState() =>
+        IsDirty = History.CurrentStateId != _savedHistoryStateId;
 
     private static PixelDocument CreateSampleDocument()
     {

@@ -8,12 +8,17 @@ public sealed class DocumentHistory
     private readonly Stack<PixelEdit> _undoStack = new();
     private readonly Stack<PixelEdit> _redoStack = new();
     private ActiveChangeSet? _activeChangeSet;
+    private long _currentStateId;
+    private long _nextStateId;
 
     public event EventHandler? Changed;
 
     public bool CanUndo => _activeChangeSet is null && _undoStack.Count > 0;
 
     public bool CanRedo => _activeChangeSet is null && _redoStack.Count > 0;
+
+    // Identifies the current point in history so saved states can be recognized after undo or redo.
+    public long CurrentStateId => _currentStateId;
 
     public void BeginChangeSet(PixelDocument document)
     {
@@ -42,14 +47,20 @@ public sealed class DocumentHistory
 
         var edit = changeSet.CreateEdit();
 
-        if (edit.Changes.Length > 0)
+        if (edit.Length > 0)
         {
-            _undoStack.Push(edit);
+            var nextStateId = checked(++_nextStateId);
+            _undoStack.Push(new PixelEdit(
+                changeSet.Document,
+                edit,
+                _currentStateId,
+                nextStateId));
             _redoStack.Clear();
+            _currentStateId = nextStateId;
         }
 
         Changed?.Invoke(this, EventArgs.Empty);
-        return edit.Changes.Length > 0;
+        return edit.Length > 0;
     }
 
     public bool Undo()
@@ -68,6 +79,7 @@ public sealed class DocumentHistory
         }
 
         _redoStack.Push(edit);
+        _currentStateId = edit.PreviousStateId;
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }
@@ -87,6 +99,7 @@ public sealed class DocumentHistory
         }
 
         _undoStack.Push(edit);
+        _currentStateId = edit.ResultStateId;
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }
@@ -122,7 +135,11 @@ public sealed class DocumentHistory
         PixelColor PreviousColor,
         PixelColor Color);
 
-    private sealed record PixelEdit(PixelDocument Document, PixelChange[] Changes);
+    private sealed record PixelEdit(
+        PixelDocument Document,
+        PixelChange[] Changes,
+        long PreviousStateId,
+        long ResultStateId);
 
     private sealed class ActiveChangeSet
     {
@@ -154,13 +171,11 @@ public sealed class DocumentHistory
                     change.Color));
         }
 
-        public PixelEdit CreateEdit()
+        public PixelChange[] CreateEdit()
         {
-            var changes = _changes.Values
+            return _changes.Values
                 .Where(change => change.PreviousColor != change.Color)
                 .ToArray();
-
-            return new PixelEdit(Document, changes);
         }
     }
 }

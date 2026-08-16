@@ -15,6 +15,8 @@ A desktop pixel art editor built with C# and Avalonia.
 
 The editor can open, save, and save as PNG through native file dialogs. Loading replaces the active document and clears its undo and redo history. PNG encoding and decoding use SkiaSharp and preserve exact RGBA values, including partial transparency.
 
+Unsaved changes are shown with an asterisk in the window title. Opening another file or closing the editor offers to save, discard, or cancel; undoing back to the last saved state removes the unsaved marker.
+
 Use `Ctrl+O`, `Ctrl+S`, and `Ctrl+Shift+S` for file operations on Windows. On macOS, use the equivalent `Cmd` shortcuts.
 
 ## Project structure

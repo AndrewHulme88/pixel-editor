@@ -21,10 +21,13 @@ public partial class MainWindow : Window
     };
 
     private IStorageFile? _currentFile;
+    private bool _allowClose;
+    private bool _closeConfirmationIsOpen;
 
     public MainWindow()
     {
         InitializeComponent();
+        Closing += OnWindowClosing;
     }
 
     protected override async void OnKeyDown(KeyEventArgs e)
@@ -79,6 +82,11 @@ public partial class MainWindow : Window
 
     private async Task OpenDocumentAsync()
     {
+        if (!await ConfirmCanDiscardChangesAsync())
+        {
+            return;
+        }
+
         try
         {
             var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -98,9 +106,9 @@ public partial class MainWindow : Window
             await using var input = await file.OpenReadAsync();
             var document = PngDocumentCodec.Load(input);
 
-            viewModel.ReplaceDocument(document);
+            viewModel.ReplaceDocument(document, file.Name);
             _currentFile = file;
-            UpdateFileDisplay(file.Name, $"Opened {file.Name}");
+            FileStatusText.Text = $"Opened {file.Name}";
         }
         catch (OperationCanceledException)
         {
@@ -112,18 +120,17 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task SaveDocumentAsync()
+    private async Task<bool> SaveDocumentAsync()
     {
         if (_currentFile is null)
         {
-            await SaveDocumentAsAsync();
-            return;
+            return await SaveDocumentAsAsync();
         }
 
-        await SaveToFileAsync(_currentFile);
+        return await SaveToFileAsync(_currentFile);
     }
 
-    private async Task SaveDocumentAsAsync()
+    private async Task<bool> SaveDocumentAsAsync()
     {
         try
         {
@@ -139,7 +146,7 @@ public partial class MainWindow : Window
 
             if (file is not null)
             {
-                await SaveToFileAsync(file);
+                return await SaveToFileAsync(file);
             }
         }
         catch (OperationCanceledException)
@@ -150,13 +157,15 @@ public partial class MainWindow : Window
         {
             FileStatusText.Text = $"Save failed: {exception.Message}";
         }
+
+        return false;
     }
 
-    private async Task SaveToFileAsync(IStorageFile file)
+    private async Task<bool> SaveToFileAsync(IStorageFile file)
     {
         if (DataContext is not MainViewModel viewModel)
         {
-            return;
+            return false;
         }
 
         try
@@ -166,7 +175,9 @@ public partial class MainWindow : Window
             await output.FlushAsync();
 
             _currentFile = file;
-            UpdateFileDisplay(file.Name, $"Saved {file.Name}");
+            viewModel.MarkDocumentSaved(file.Name);
+            FileStatusText.Text = $"Saved {file.Name}";
+            return true;
         }
         catch (OperationCanceledException)
         {
@@ -176,12 +187,56 @@ public partial class MainWindow : Window
         {
             FileStatusText.Text = $"Save failed: {exception.Message}";
         }
+
+        return false;
     }
 
-    private void UpdateFileDisplay(string fileName, string status)
+    private async Task<bool> ConfirmCanDiscardChangesAsync()
     {
-        Title = $"{fileName} - Pixel Editor";
-        FileStatusText.Text = status;
+        if (DataContext is not MainViewModel { IsDirty: true } viewModel)
+        {
+            return true;
+        }
+
+        var dialog = new UnsavedChangesDialog(viewModel.DocumentName);
+        var choice = await dialog.ShowDialog<UnsavedChangesChoice>(this);
+
+        return choice switch
+        {
+            UnsavedChangesChoice.Save => await SaveDocumentAsync(),
+            UnsavedChangesChoice.DontSave => true,
+            _ => false
+        };
+    }
+
+    private async void OnWindowClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (_allowClose || DataContext is not MainViewModel { IsDirty: true })
+        {
+            return;
+        }
+
+        e.Cancel = true;
+
+        if (_closeConfirmationIsOpen)
+        {
+            return;
+        }
+
+        _closeConfirmationIsOpen = true;
+
+        try
+        {
+            if (await ConfirmCanDiscardChangesAsync())
+            {
+                _allowClose = true;
+                Close();
+            }
+        }
+        finally
+        {
+            _closeConfirmationIsOpen = false;
+        }
     }
 
     private static bool IsExpectedFileError(Exception exception) =>

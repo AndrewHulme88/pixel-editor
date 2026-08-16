@@ -13,7 +13,7 @@
         MinWidth="640"
         MinHeight="480"
         Icon="/Assets/avalonia-logo.ico"
-        Title="Untitled - Pixel Editor">
+        Title="{Binding WindowTitle}">
 
     <Window.Resources>
         <converters:PixelColorConverter x:Key="PixelColorConverter" />

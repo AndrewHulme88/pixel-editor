@@ -15,6 +15,7 @@ public sealed class DocumentHistoryTests
     {
         var history = new DocumentHistory();
 
+        Assert.Equal(0, history.CurrentStateId);
         Assert.False(history.CanUndo);
         Assert.False(history.CanRedo);
         Assert.False(history.Undo());
@@ -106,6 +107,29 @@ public sealed class DocumentHistoryTests
         Assert.False(history.CanRedo);
         Assert.False(history.Redo());
         Assert.Equal(Blue, document.GetPixel(1, 0));
+    }
+
+    [Fact]
+    public void StateId_IdentifiesUndoRedoAndBranchedStates()
+    {
+        var document = new PixelDocument(2, 1);
+        var history = new DocumentHistory();
+        var initialState = history.CurrentStateId;
+
+        RecordPixel(history, document, 0, Red);
+        var firstEditState = history.CurrentStateId;
+
+        Assert.NotEqual(initialState, firstEditState);
+        history.Undo();
+        Assert.Equal(initialState, history.CurrentStateId);
+        history.Redo();
+        Assert.Equal(firstEditState, history.CurrentStateId);
+
+        history.Undo();
+        RecordPixel(history, document, 1, Blue);
+
+        Assert.NotEqual(initialState, history.CurrentStateId);
+        Assert.NotEqual(firstEditState, history.CurrentStateId);
     }
 
     [Fact]
