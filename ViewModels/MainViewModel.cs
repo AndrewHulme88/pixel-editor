@@ -9,7 +9,7 @@ namespace pixel_editor.ViewModels;
 
 public partial class MainViewModel : ViewModelBase
 {
-    private long _savedHistoryStateId;
+    private long? _savedHistoryStateId;
 
     public MainViewModel()
     {
@@ -74,6 +74,17 @@ public partial class MainViewModel : ViewModelBase
         UpdateDirtyState();
     }
 
+    public void CreateNewDocument(int width, int height)
+    {
+        var document = new PixelDocument(width, height);
+
+        History.Clear();
+        Document = document;
+        DocumentName = "Untitled";
+        _savedHistoryStateId = null;
+        UpdateDirtyState();
+    }
+
     public void MarkDocumentSaved(string documentName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(documentName);
@@ -93,7 +104,7 @@ public partial class MainViewModel : ViewModelBase
     }
 
     private void UpdateDirtyState() =>
-        IsDirty = History.CurrentStateId != _savedHistoryStateId;
+        IsDirty = _savedHistoryStateId is null || History.CurrentStateId != _savedHistoryStateId;
 
     private static PixelDocument CreateSampleDocument()
     {

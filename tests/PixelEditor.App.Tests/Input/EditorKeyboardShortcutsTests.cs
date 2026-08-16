@@ -7,12 +7,14 @@ namespace PixelEditor.App.Tests.Input;
 public sealed class EditorKeyboardShortcutsTests
 {
     [Theory]
+    [InlineData(Key.N, KeyModifiers.Control, false, (int)EditorShortcut.New)]
     [InlineData(Key.O, KeyModifiers.Control, false, (int)EditorShortcut.Open)]
     [InlineData(Key.S, KeyModifiers.Control, false, (int)EditorShortcut.Save)]
     [InlineData(Key.S, KeyModifiers.Control | KeyModifiers.Shift, false, (int)EditorShortcut.SaveAs)]
     [InlineData(Key.Z, KeyModifiers.Control, false, (int)EditorShortcut.Undo)]
     [InlineData(Key.Y, KeyModifiers.Control, false, (int)EditorShortcut.Redo)]
     [InlineData(Key.Z, KeyModifiers.Control | KeyModifiers.Shift, false, (int)EditorShortcut.Redo)]
+    [InlineData(Key.N, KeyModifiers.Meta, true, (int)EditorShortcut.New)]
     [InlineData(Key.O, KeyModifiers.Meta, true, (int)EditorShortcut.Open)]
     [InlineData(Key.S, KeyModifiers.Meta, true, (int)EditorShortcut.Save)]
     [InlineData(Key.S, KeyModifiers.Meta | KeyModifiers.Shift, true, (int)EditorShortcut.SaveAs)]
@@ -36,6 +38,7 @@ public sealed class EditorKeyboardShortcutsTests
     [InlineData(Key.Z, KeyModifiers.Shift, false)]
     [InlineData(Key.Y, KeyModifiers.Control | KeyModifiers.Shift, false)]
     [InlineData(Key.Y, KeyModifiers.Meta | KeyModifiers.Shift, true)]
+    [InlineData(Key.N, KeyModifiers.Control | KeyModifiers.Shift, false)]
     [InlineData(Key.O, KeyModifiers.Control | KeyModifiers.Shift, false)]
     [InlineData(Key.S, KeyModifiers.Alt, false)]
     [InlineData(Key.X, KeyModifiers.Control, false)]

@@ -6,9 +6,7 @@ using pixel_editor.ViewModels;
 
 namespace pixel_editor;
 
-/// <summary>
-/// Given a view model, returns the corresponding view if possible.
-/// </summary>
+// Returns the view associated with a view model when one can be found.
 [RequiresUnreferencedCode(
     "Default implementation of ViewLocator involves reflection which may be trimmed away.",
     Url = "https://docs.avaloniaui.net/docs/concepts/view-locator")]

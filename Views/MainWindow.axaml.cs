@@ -44,7 +44,12 @@ public partial class MainWindow : Window
             e.KeyModifiers,
             OperatingSystem.IsMacOS());
 
-        if (shortcut == EditorShortcut.Open)
+        if (shortcut == EditorShortcut.New)
+        {
+            e.Handled = true;
+            await NewDocumentAsync();
+        }
+        else if (shortcut == EditorShortcut.Open)
         {
             e.Handled = true;
             await OpenDocumentAsync();
@@ -71,6 +76,9 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void New_OnClick(object? sender, RoutedEventArgs e) =>
+        await NewDocumentAsync();
+
     private async void Open_OnClick(object? sender, RoutedEventArgs e) =>
         await OpenDocumentAsync();
 
@@ -79,6 +87,24 @@ public partial class MainWindow : Window
 
     private async void SaveAs_OnClick(object? sender, RoutedEventArgs e) =>
         await SaveDocumentAsAsync();
+
+    private async Task NewDocumentAsync()
+    {
+        var dialog = new NewDocumentDialog();
+        var size = await dialog.ShowDialog<NewDocumentSize?>(this);
+
+        if (size is not { } selectedSize || !await ConfirmCanDiscardChangesAsync())
+        {
+            return;
+        }
+
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.CreateNewDocument(selectedSize.Width, selectedSize.Height);
+            _currentFile = null;
+            FileStatusText.Text = $"Created {selectedSize.Width} × {selectedSize.Height} document";
+        }
+    }
 
     private async Task OpenDocumentAsync()
     {

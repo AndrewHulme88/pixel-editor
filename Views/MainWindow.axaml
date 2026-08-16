@@ -27,6 +27,9 @@
           Background="#242424">
         <Menu Background="#161616">
             <MenuItem Header="_File">
+                <MenuItem Header="_New..."
+                          Click="New_OnClick" />
+                <Separator />
                 <MenuItem Header="_Open..."
                           Click="Open_OnClick" />
                 <Separator />

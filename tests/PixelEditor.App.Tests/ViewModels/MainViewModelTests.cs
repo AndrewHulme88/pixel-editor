@@ -100,6 +100,39 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public void CreateNewDocument_CreatesTransparentUntitledDocumentAndClearsHistory()
+    {
+        var viewModel = new MainViewModel();
+        RecordPixelEdit(viewModel, 0, 0);
+
+        viewModel.CreateNewDocument(24, 18);
+
+        Assert.Equal(24, viewModel.Document.Width);
+        Assert.Equal(18, viewModel.Document.Height);
+        Assert.Equal(PixelColor.Transparent, viewModel.Document.GetPixel(0, 0));
+        Assert.Equal("Untitled", viewModel.DocumentName);
+        Assert.Equal("Untitled* - Pixel Editor", viewModel.WindowTitle);
+        Assert.True(viewModel.IsDirty);
+        Assert.False(viewModel.CanUndo);
+        Assert.False(viewModel.CanRedo);
+    }
+
+    [Theory]
+    [InlineData(0, 16)]
+    [InlineData(16, 0)]
+    public void CreateNewDocument_WithInvalidDimensions_LeavesCurrentDocumentUnchanged(
+        int width,
+        int height)
+    {
+        var viewModel = new MainViewModel();
+        var original = viewModel.Document;
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            viewModel.CreateNewDocument(width, height));
+        Assert.Same(original, viewModel.Document);
+    }
+
+    [Fact]
     public void DocumentState_TracksEditsSaveUndoAndRedo()
     {
         var viewModel = new MainViewModel();
