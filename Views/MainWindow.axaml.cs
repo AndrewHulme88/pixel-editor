@@ -88,6 +88,9 @@ public partial class MainWindow : Window
     private async void SaveAs_OnClick(object? sender, RoutedEventArgs e) =>
         await SaveDocumentAsAsync();
 
+    private async void ResizeCanvas_OnClick(object? sender, RoutedEventArgs e) =>
+        await ResizeCanvasAsync();
+
     private void ZoomOut_OnClick(object? sender, RoutedEventArgs e) =>
         EditorCanvas.ZoomOut();
 
@@ -96,6 +99,25 @@ public partial class MainWindow : Window
 
     private void ResetZoom_OnClick(object? sender, RoutedEventArgs e) =>
         EditorCanvas.ResetView();
+
+    private async Task ResizeCanvasAsync()
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var dialog = new CanvasResizeDialog(
+            viewModel.Document.Width,
+            viewModel.Document.Height);
+        var settings = await dialog.ShowDialog<CanvasResizeSettings?>(this);
+
+        if (settings is { } selected &&
+            viewModel.ResizeDocument(selected.Width, selected.Height, selected.Anchor))
+        {
+            FileStatusText.Text = $"Resized canvas to {selected.Width} × {selected.Height}";
+        }
+    }
 
     private async Task NewDocumentAsync()
     {

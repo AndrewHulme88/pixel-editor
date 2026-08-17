@@ -6,6 +6,7 @@ These benchmarks measure operations that sit on the editor's active drawing path
 - Recording and undoing complete brush strokes
 - Full conversion of a document into the premultiplied BGRA format used by Avalonia
 - PNG encoding and decoding at representative canvas sizes
+- Growing and shrinking canvases while preserving anchored pixels
 
 Run the suite in Release mode:
 

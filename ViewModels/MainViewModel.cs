@@ -85,6 +85,22 @@ public partial class MainViewModel : ViewModelBase
         UpdateDirtyState();
     }
 
+    public bool ResizeDocument(int width, int height, CanvasAnchor anchor)
+    {
+        if (width == Document.Width && height == Document.Height)
+        {
+            return false;
+        }
+
+        var resized = PixelDocumentResizer.Resize(Document, width, height, anchor);
+
+        History.Clear();
+        Document = resized;
+        _savedHistoryStateId = null;
+        UpdateDirtyState();
+        return true;
+    }
+
     public void MarkDocumentSaved(string documentName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(documentName);

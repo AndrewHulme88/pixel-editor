@@ -38,6 +38,10 @@
                 <MenuItem Header="Save _As..."
                           Click="SaveAs_OnClick" />
             </MenuItem>
+            <MenuItem Header="_Image">
+                <MenuItem Header="Resize _Canvas..."
+                          Click="ResizeCanvas_OnClick" />
+            </MenuItem>
         </Menu>
 
         <Border Grid.Row="1"

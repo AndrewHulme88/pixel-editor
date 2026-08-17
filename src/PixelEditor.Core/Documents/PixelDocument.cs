@@ -44,6 +44,26 @@ public sealed class PixelDocument
         PixelChanged?.Invoke(this, new PixelChangedEventArgs(x, y, previousColor, color));
     }
 
+    internal void CopyRegionTo(
+        PixelDocument destination,
+        int sourceX,
+        int sourceY,
+        int destinationX,
+        int destinationY,
+        int width,
+        int height)
+    {
+        for (var row = 0; row < height; row++)
+        {
+            Array.Copy(
+                _pixels,
+                ((sourceY + row) * Width) + sourceX,
+                destination._pixels,
+                ((destinationY + row) * destination.Width) + destinationX,
+                width);
+        }
+    }
+
     private int GetIndex(int x, int y)
     {
         if ((uint)x >= (uint)Width)

@@ -133,6 +133,56 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public void ResizeDocument_ReplacesCanvasKeepsNameAndClearsHistory()
+    {
+        var viewModel = new MainViewModel();
+        viewModel.MarkDocumentSaved("art.png");
+        RecordPixelEdit(viewModel, 0, 0);
+        var retainedColor = viewModel.Document.GetPixel(0, 0);
+
+        var wasResized = viewModel.ResizeDocument(20, 18, CanvasAnchor.TopLeft);
+
+        Assert.True(wasResized);
+        Assert.Equal(20, viewModel.Document.Width);
+        Assert.Equal(18, viewModel.Document.Height);
+        Assert.Equal(retainedColor, viewModel.Document.GetPixel(0, 0));
+        Assert.Equal("art.png", viewModel.DocumentName);
+        Assert.True(viewModel.IsDirty);
+        Assert.False(viewModel.CanUndo);
+        Assert.False(viewModel.CanRedo);
+    }
+
+    [Fact]
+    public void ResizeDocument_ToSameDimensions_DoesNotChangeEditorState()
+    {
+        var viewModel = new MainViewModel();
+        RecordPixelEdit(viewModel, 0, 0);
+        viewModel.MarkDocumentSaved("art.png");
+        var original = viewModel.Document;
+
+        var wasResized = viewModel.ResizeDocument(
+            original.Width,
+            original.Height,
+            CanvasAnchor.Center);
+
+        Assert.False(wasResized);
+        Assert.Same(original, viewModel.Document);
+        Assert.False(viewModel.IsDirty);
+        Assert.True(viewModel.CanUndo);
+    }
+
+    [Fact]
+    public void ResizeDocument_WithInvalidDimensions_LeavesCurrentDocumentUnchanged()
+    {
+        var viewModel = new MainViewModel();
+        var original = viewModel.Document;
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            viewModel.ResizeDocument(0, 16, CanvasAnchor.Center));
+        Assert.Same(original, viewModel.Document);
+    }
+
+    [Fact]
     public void DocumentState_TracksEditsSaveUndoAndRedo()
     {
         var viewModel = new MainViewModel();
