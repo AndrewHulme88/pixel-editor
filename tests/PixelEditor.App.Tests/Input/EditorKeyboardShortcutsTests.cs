@@ -7,6 +7,10 @@ namespace PixelEditor.App.Tests.Input;
 public sealed class EditorKeyboardShortcutsTests
 {
     [Theory]
+    [InlineData(Key.OemMinus, KeyModifiers.None, false, (int)EditorShortcut.DecreaseBrushSize)]
+    [InlineData(Key.Subtract, KeyModifiers.None, false, (int)EditorShortcut.DecreaseBrushSize)]
+    [InlineData(Key.OemPlus, KeyModifiers.None, false, (int)EditorShortcut.IncreaseBrushSize)]
+    [InlineData(Key.Add, KeyModifiers.None, false, (int)EditorShortcut.IncreaseBrushSize)]
     [InlineData(Key.N, KeyModifiers.Control, false, (int)EditorShortcut.New)]
     [InlineData(Key.O, KeyModifiers.Control, false, (int)EditorShortcut.Open)]
     [InlineData(Key.S, KeyModifiers.Control, false, (int)EditorShortcut.Save)]
@@ -41,6 +45,8 @@ public sealed class EditorKeyboardShortcutsTests
     [InlineData(Key.N, KeyModifiers.Control | KeyModifiers.Shift, false)]
     [InlineData(Key.O, KeyModifiers.Control | KeyModifiers.Shift, false)]
     [InlineData(Key.S, KeyModifiers.Alt, false)]
+    [InlineData(Key.OemMinus, KeyModifiers.Control, false)]
+    [InlineData(Key.OemPlus, KeyModifiers.Shift, false)]
     [InlineData(Key.X, KeyModifiers.Control, false)]
     public void Resolve_WithUnsupportedShortcut_ReturnsNone(
         Key key,

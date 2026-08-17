@@ -18,10 +18,13 @@ public class DocumentHistoryBenchmarks
     [Params(16, 64, 256)]
     public int StrokeLength { get; set; }
 
+    [Params(1, 4, 16, 64)]
+    public int BrushSize { get; set; }
+
     [IterationSetup]
     public void Setup()
     {
-        _document = new PixelDocument(StrokeLength, 1);
+        _document = new PixelDocument(StrokeLength, BrushSize);
         _history = new DocumentHistory();
     }
 
@@ -29,7 +32,14 @@ public class DocumentHistoryBenchmarks
     public void RecordAndUndoStroke()
     {
         _history.BeginChangeSet(_document);
-        BrushTool.DrawLine(_document, 0, 0, StrokeLength - 1, 0, Color);
+        BrushTool.DrawLine(
+            _document,
+            0,
+            BrushSize / 2,
+            StrokeLength - 1,
+            BrushSize / 2,
+            Color,
+            BrushSize);
         _history.CommitChangeSet();
         _history.Undo();
     }

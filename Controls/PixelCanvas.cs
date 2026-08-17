@@ -32,6 +32,11 @@ public sealed class PixelCanvas : Control
             nameof(BrushColor),
             new PixelColor(49, 130, 206));
 
+    public static readonly StyledProperty<int> BrushSizeProperty =
+        AvaloniaProperty.Register<PixelCanvas, int>(
+            nameof(BrushSize),
+            BrushTool.MinimumSize);
+
     public static readonly StyledProperty<EditorTool> ActiveToolProperty =
         AvaloniaProperty.Register<PixelCanvas, EditorTool>(
             nameof(ActiveTool),
@@ -85,6 +90,12 @@ public sealed class PixelCanvas : Control
     {
         get => GetValue(BrushColorProperty);
         set => SetValue(BrushColorProperty, value);
+    }
+
+    public int BrushSize
+    {
+        get => GetValue(BrushSizeProperty);
+        set => SetValue(BrushSizeProperty, value);
     }
 
     public EditorTool ActiveTool
@@ -260,6 +271,10 @@ public sealed class PixelCanvas : Control
             SetHoveredPixel(null);
             RebuildBitmap();
         }
+        else if (change.Property == BrushSizeProperty)
+        {
+            InvalidateVisual();
+        }
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -379,20 +394,15 @@ public sealed class PixelCanvas : Control
 
         var color = ToolColorResolver.Resolve(ActiveTool, BrushColor);
 
-        if (_lastPaintedPixel is { } previous)
-        {
-            BrushTool.DrawLine(
-                Document,
-                previous.X,
-                previous.Y,
-                coordinate.X,
-                coordinate.Y,
-                color);
-        }
-        else
-        {
-            Document.SetPixel(coordinate.X, coordinate.Y, color);
-        }
+        var start = _lastPaintedPixel ?? coordinate;
+        BrushTool.DrawLine(
+            Document,
+            start.X,
+            start.Y,
+            coordinate.X,
+            coordinate.Y,
+            color,
+            BrushSize);
 
         _lastPaintedPixel = coordinate;
         SetHoveredPixel(coordinate);
@@ -464,7 +474,13 @@ public sealed class PixelCanvas : Control
         context.DrawRectangle(
             HoverFill,
             HoverOutline,
-            CanvasPixelGrid.GetPixelBounds(layout, pixel.X, pixel.Y));
+            CanvasPixelGrid.GetBrushBounds(
+                layout,
+                pixel.X,
+                pixel.Y,
+                BrushSize,
+                Document!.Width,
+                Document.Height));
     }
 
     private CanvasLayoutResult GetCanvasLayout()

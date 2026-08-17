@@ -11,7 +11,9 @@ A desktop pixel art editor built with C# and Avalonia.
 - Basic editor layout
 - Save and load
 
-## Current milestone: canvas resizing
+## Current milestone: brush size
+
+The brush and eraser support square sizes from 1×1 to 64×64 pixels. Choose a common size from the editable toolbar list, type any supported size, press `-` to decrease it, or press `=` to increase it. Thick strokes remain continuous, clip safely at canvas edges, and show their full footprint in the hover indicator.
 
 The Image menu can resize the canvas from 1×1 to 4096×4096 pixels using nine anchor positions. Growing adds transparent space, while shrinking crops pixels outside the new bounds. Resizing preserves the current filename, marks the document unsaved, clears pixel undo/redo history, and resets the viewport to Fit.
 
@@ -52,7 +54,7 @@ dotnet run --project pixel-editor.csproj
 
 ## Performance testing
 
-Performance benchmarks cover continuous brush strokes, undo history, pixel-buffer conversion, and PNG persistence. Run them in Release mode:
+Performance benchmarks cover multiple brush sizes, undo history, canvas resizing, pixel-buffer conversion, and PNG persistence. Run them in Release mode:
 
 ```sh
 dotnet run -c Release --project benchmarks/PixelEditor.Benchmarks -- --filter "*"

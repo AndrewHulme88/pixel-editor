@@ -68,6 +68,16 @@
                              IsAlphaEnabled="True"
                              IsAlphaVisible="True"
                              Color="{Binding BrushColor, Converter={StaticResource PixelColorConverter}, Mode=TwoWay}" />
+                <TextBlock Margin="8,0,0,0"
+                           VerticalAlignment="Center"
+                           Foreground="#E6E6E6"
+                           Text="Size:" />
+                <ComboBox Width="76"
+                          x:Name="BrushSizeSelector"
+                          IsEditable="True"
+                          ItemsSource="{Binding BrushSizeOptions}"
+                          Text="{Binding BrushSizeText, Mode=TwoWay}"
+                          LostFocus="BrushSizeSelector_OnLostFocus" />
                 <Border Width="1"
                         Height="24"
                         Margin="6,0"
@@ -83,6 +93,7 @@
                               x:Name="EditorCanvas"
                               Document="{Binding Document}"
                               BrushColor="{Binding BrushColor}"
+                              BrushSize="{Binding BrushSize}"
                               ActiveTool="{Binding ActiveTool}"
                               History="{Binding History}"
                               Margin="24" />

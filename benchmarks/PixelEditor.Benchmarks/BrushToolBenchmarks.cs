@@ -18,6 +18,9 @@ public class BrushToolBenchmarks
     [Params(16, 64, 256)]
     public int StrokeLength { get; set; }
 
+    [Params(1, 4, 16, 64)]
+    public int BrushSize { get; set; }
+
     [GlobalSetup]
     public void Setup()
     {
@@ -34,7 +37,8 @@ public class BrushToolBenchmarks
             StrokeLength / 2,
             StrokeLength - 1,
             StrokeLength / 2,
-            NextColor());
+            NextColor(),
+            BrushSize);
     }
 
     [Benchmark]
@@ -46,7 +50,8 @@ public class BrushToolBenchmarks
             0,
             StrokeLength - 1,
             StrokeLength - 1,
-            NextColor());
+            NextColor(),
+            BrushSize);
     }
 
     private PixelColor NextColor()

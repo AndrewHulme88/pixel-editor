@@ -15,6 +15,7 @@ public sealed class MainViewModelTests
         Assert.Equal(EditorTool.Brush, viewModel.ActiveTool);
         Assert.True(viewModel.IsBrushSelected);
         Assert.False(viewModel.IsEraserSelected);
+        Assert.Equal(1, viewModel.BrushSize);
         Assert.False(viewModel.IsDirty);
         Assert.Equal("Untitled - Pixel Editor", viewModel.WindowTitle);
     }
@@ -253,6 +254,70 @@ public sealed class MainViewModelTests
         viewModel.SelectBrushCommand.Execute(null);
 
         Assert.Equal(new PixelColor(80, 120, 160, 200), viewModel.BrushColor);
+    }
+
+    [Fact]
+    public void BrushSize_WhenChanged_NotifiesBindingsAndClampsToSupportedRange()
+    {
+        var viewModel = new MainViewModel();
+        var changedProperties = new List<string?>();
+        viewModel.PropertyChanged += (_, e) => changedProperties.Add(e.PropertyName);
+
+        viewModel.BrushSize = 5;
+
+        Assert.Equal(5, viewModel.BrushSize);
+        Assert.Contains(nameof(MainViewModel.BrushSize), changedProperties);
+        Assert.Contains(nameof(MainViewModel.BrushSizeText), changedProperties);
+
+        viewModel.BrushSize = 100;
+        Assert.Equal(BrushTool.MaximumSize, viewModel.BrushSize);
+
+        viewModel.BrushSize = -10;
+        Assert.Equal(BrushTool.MinimumSize, viewModel.BrushSize);
+    }
+
+    [Fact]
+    public void BrushSizeText_AcceptsTypedValuesAndIgnoresInvalidText()
+    {
+        var viewModel = new MainViewModel();
+
+        viewModel.BrushSizeText = "12";
+        Assert.Equal(12, viewModel.BrushSize);
+        Assert.Equal("12", viewModel.BrushSizeText);
+
+        viewModel.BrushSizeText = "100";
+        Assert.Equal(BrushTool.MaximumSize, viewModel.BrushSize);
+
+        viewModel.BrushSizeText = "not a number";
+        Assert.Equal(BrushTool.MaximumSize, viewModel.BrushSize);
+    }
+
+    [Fact]
+    public void BrushSizeOptions_ContainsCommonSizesAndSupportedLimits()
+    {
+        var viewModel = new MainViewModel();
+
+        Assert.Equal(BrushTool.MinimumSize, viewModel.BrushSizeOptions[0]);
+        Assert.Contains(8, viewModel.BrushSizeOptions);
+        Assert.Contains(16, viewModel.BrushSizeOptions);
+        Assert.Equal(BrushTool.MaximumSize, viewModel.BrushSizeOptions[^1]);
+    }
+
+    [Fact]
+    public void BrushSizeCommands_AdjustSizeWithinSupportedRange()
+    {
+        var viewModel = new MainViewModel();
+
+        viewModel.IncreaseBrushSizeCommand.Execute(null);
+        Assert.Equal(2, viewModel.BrushSize);
+
+        viewModel.DecreaseBrushSizeCommand.Execute(null);
+        viewModel.DecreaseBrushSizeCommand.Execute(null);
+        Assert.Equal(BrushTool.MinimumSize, viewModel.BrushSize);
+
+        viewModel.BrushSize = BrushTool.MaximumSize;
+        viewModel.IncreaseBrushSizeCommand.Execute(null);
+        Assert.Equal(BrushTool.MaximumSize, viewModel.BrushSize);
     }
 
     private static void RecordPixelEdit(MainViewModel viewModel, int x, int y)

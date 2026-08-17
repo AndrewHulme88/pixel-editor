@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PixelEditor.Core.Documents;
@@ -10,6 +12,7 @@ namespace pixel_editor.ViewModels;
 public partial class MainViewModel : ViewModelBase
 {
     private long? _savedHistoryStateId;
+    private int _brushSize = BrushTool.MinimumSize;
 
     public MainViewModel()
     {
@@ -24,6 +27,9 @@ public partial class MainViewModel : ViewModelBase
 
     public DocumentHistory History { get; }
 
+    public IReadOnlyList<int> BrushSizeOptions { get; } =
+        [1, 2, 3, 4, 5, 8, 12, 16, 24, 32, 48, 64];
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(WindowTitle))]
     public partial string DocumentName { get; private set; } = "Untitled";
@@ -34,6 +40,36 @@ public partial class MainViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial PixelColor BrushColor { get; set; } = new(49, 130, 206);
+
+    public int BrushSize
+    {
+        get => _brushSize;
+        set
+        {
+            if (SetProperty(
+                ref _brushSize,
+                Math.Clamp(value, BrushTool.MinimumSize, BrushTool.MaximumSize)))
+            {
+                OnPropertyChanged(nameof(BrushSizeText));
+            }
+        }
+    }
+
+    public string BrushSizeText
+    {
+        get => BrushSize.ToString(CultureInfo.InvariantCulture);
+        set
+        {
+            if (int.TryParse(
+                value,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var size))
+            {
+                BrushSize = size;
+            }
+        }
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBrushSelected))]
@@ -55,6 +91,12 @@ public partial class MainViewModel : ViewModelBase
 
     [RelayCommand]
     private void SelectEraser() => ActiveTool = EditorTool.Eraser;
+
+    [RelayCommand]
+    private void DecreaseBrushSize() => BrushSize--;
+
+    [RelayCommand]
+    private void IncreaseBrushSize() => BrushSize++;
 
     [RelayCommand(CanExecute = nameof(CanUndo))]
     private void Undo() => History.Undo();

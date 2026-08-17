@@ -74,6 +74,16 @@ public partial class MainWindow : Window
             viewModel.RedoCommand.Execute(null);
             e.Handled = true;
         }
+        else if (shortcut == EditorShortcut.DecreaseBrushSize)
+        {
+            viewModel.DecreaseBrushSizeCommand.Execute(null);
+            e.Handled = true;
+        }
+        else if (shortcut == EditorShortcut.IncreaseBrushSize)
+        {
+            viewModel.IncreaseBrushSizeCommand.Execute(null);
+            e.Handled = true;
+        }
     }
 
     private async void New_OnClick(object? sender, RoutedEventArgs e) =>
@@ -99,6 +109,14 @@ public partial class MainWindow : Window
 
     private void ResetZoom_OnClick(object? sender, RoutedEventArgs e) =>
         EditorCanvas.ResetView();
+
+    private void BrushSizeSelector_OnLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (sender is ComboBox selector && DataContext is MainViewModel viewModel)
+        {
+            selector.Text = viewModel.BrushSizeText;
+        }
+    }
 
     private async Task ResizeCanvasAsync()
     {

@@ -28,4 +28,24 @@ public sealed class CanvasPixelGridTests
         Assert.Equal(layout.Destination.Right, bounds.Right);
         Assert.Equal(layout.Destination.Bottom, bounds.Bottom);
     }
+
+    [Fact]
+    public void GetBrushBounds_UsesFullBrushFootprint()
+    {
+        var layout = new CanvasLayoutResult(new Rect(20, 10, 70, 70), 10);
+
+        var bounds = CanvasPixelGrid.GetBrushBounds(layout, 3, 3, 3, 7, 7);
+
+        Assert.Equal(new Rect(40, 30, 30, 30), bounds);
+    }
+
+    [Fact]
+    public void GetBrushBounds_ClipsFootprintAtDocumentEdge()
+    {
+        var layout = new CanvasLayoutResult(new Rect(20, 10, 70, 70), 10);
+
+        var bounds = CanvasPixelGrid.GetBrushBounds(layout, 0, 0, 3, 7, 7);
+
+        Assert.Equal(new Rect(20, 10, 20, 20), bounds);
+    }
 }

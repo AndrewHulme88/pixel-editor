@@ -10,7 +10,9 @@ internal enum EditorShortcut
     Save,
     SaveAs,
     Undo,
-    Redo
+    Redo,
+    DecreaseBrushSize,
+    IncreaseBrushSize
 }
 
 internal static class EditorKeyboardShortcuts
@@ -20,6 +22,16 @@ internal static class EditorKeyboardShortcuts
         var commandModifier = isMacOs
             ? KeyModifiers.Meta
             : KeyModifiers.Control;
+
+        if (modifiers == KeyModifiers.None && key is Key.OemMinus or Key.Subtract)
+        {
+            return EditorShortcut.DecreaseBrushSize;
+        }
+
+        if (modifiers == KeyModifiers.None && key is Key.OemPlus or Key.Add)
+        {
+            return EditorShortcut.IncreaseBrushSize;
+        }
 
         if (key == Key.N && modifiers == commandModifier)
         {
