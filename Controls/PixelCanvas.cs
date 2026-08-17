@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using pixel_editor.Input;
 using pixel_editor.Rendering;
 using pixel_editor.Tools;
 using PixelEditor.Core.Documents;
@@ -55,12 +56,15 @@ public sealed class PixelCanvas : Control
     private PixelDocument? _subscribedDocument;
     private PixelCoordinate? _hoveredPixel;
     private PixelCoordinate? _lastPaintedPixel;
+    private PixelCoordinate? _straightLineStart;
+    private PixelCoordinate? _straightLineEnd;
     private DocumentHistory? _activeHistory;
     private double? _pixelScale;
     private Vector _panOffset;
     private Point _lastPanPosition;
     private bool _isDrawing;
     private bool _isPanning;
+    private BrushStrokeMode _strokeMode;
 
     public PixelCanvas()
     {
@@ -136,6 +140,7 @@ public sealed class PixelCanvas : Control
         var source = new Rect(0, 0, Document.Width, Document.Height);
         context.DrawImage(_bitmap, source, layout.Destination);
         context.DrawRectangle(null, CanvasBorder, layout.Destination);
+        DrawStraightLineGuide(context, layout);
         DrawHoveredPixel(context, layout);
     }
 
@@ -171,7 +176,19 @@ public sealed class PixelCanvas : Control
 
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
+            if (_strokeMode == BrushStrokeMode.StraightLine)
+            {
+                UpdateStraightLineEnd(pointerPosition);
+                PaintStraightLine();
+            }
+
             EndBrushStroke(e.Pointer);
+            return;
+        }
+
+        if (_strokeMode == BrushStrokeMode.StraightLine)
+        {
+            UpdateStraightLineEnd(pointerPosition);
             return;
         }
 
@@ -193,7 +210,7 @@ public sealed class PixelCanvas : Control
 
         if (Document is not { } document ||
             !pointerPoint.Properties.IsLeftButtonPressed ||
-            !TryGetPixelCoordinate(e.GetPosition(this), out _))
+            !TryGetPixelCoordinate(e.GetPosition(this), out var coordinate))
         {
             return;
         }
@@ -202,8 +219,21 @@ public sealed class PixelCanvas : Control
         _activeHistory?.BeginChangeSet(document);
         _isDrawing = true;
         _lastPaintedPixel = null;
+        _strokeMode = BrushStrokeModeResolver.Resolve(e.KeyModifiers);
         e.Pointer.Capture(this);
-        PaintTo(e.GetPosition(this));
+
+        if (_strokeMode == BrushStrokeMode.StraightLine)
+        {
+            _straightLineStart = coordinate;
+            _straightLineEnd = coordinate;
+            SetHoveredPixel(coordinate);
+            InvalidateVisual();
+        }
+        else
+        {
+            PaintTo(e.GetPosition(this));
+        }
+
         e.Handled = true;
     }
 
@@ -228,7 +258,16 @@ public sealed class PixelCanvas : Control
             return;
         }
 
-        PaintTo(e.GetPosition(this));
+        if (_strokeMode == BrushStrokeMode.StraightLine)
+        {
+            UpdateStraightLineEnd(e.GetPosition(this));
+            PaintStraightLine();
+        }
+        else
+        {
+            PaintTo(e.GetPosition(this));
+        }
+
         EndBrushStroke(e.Pointer);
         e.Handled = true;
     }
@@ -408,6 +447,38 @@ public sealed class PixelCanvas : Control
         SetHoveredPixel(coordinate);
     }
 
+    private void UpdateStraightLineEnd(Point pointerPosition)
+    {
+        if (!TryGetPixelCoordinate(pointerPosition, out var coordinate))
+        {
+            return;
+        }
+
+        _straightLineEnd = coordinate;
+        SetHoveredPixel(coordinate);
+    }
+
+    private void PaintStraightLine()
+    {
+        if (Document is not { } document ||
+            _straightLineStart is not { } start ||
+            _straightLineEnd is not { } end)
+        {
+            return;
+        }
+
+        BrushTool.DrawLine(
+            document,
+            start.X,
+            start.Y,
+            end.X,
+            end.Y,
+            ToolColorResolver.Resolve(ActiveTool, BrushColor),
+            BrushSize);
+
+        SetHoveredPixel(end);
+    }
+
     private void EndBrushStroke(IPointer pointer)
     {
         CompleteStroke();
@@ -445,6 +516,9 @@ public sealed class PixelCanvas : Control
 
         _isDrawing = false;
         _lastPaintedPixel = null;
+        _straightLineStart = null;
+        _straightLineEnd = null;
+        _strokeMode = BrushStrokeMode.Freehand;
         _activeHistory?.CommitChangeSet();
         _activeHistory = null;
     }
@@ -478,6 +552,31 @@ public sealed class PixelCanvas : Control
                 layout,
                 pixel.X,
                 pixel.Y,
+                BrushSize,
+                Document!.Width,
+                Document.Height));
+    }
+
+    private void DrawStraightLineGuide(DrawingContext context, CanvasLayoutResult layout)
+    {
+        if (_strokeMode != BrushStrokeMode.StraightLine ||
+            _straightLineStart is not { } start ||
+            _straightLineEnd is not { } end)
+        {
+            return;
+        }
+
+        var startBounds = CanvasPixelGrid.GetPixelBounds(layout, start.X, start.Y);
+        var endBounds = CanvasPixelGrid.GetPixelBounds(layout, end.X, end.Y);
+
+        context.DrawLine(HoverOutline, startBounds.Center, endBounds.Center);
+        context.DrawRectangle(
+            HoverFill,
+            HoverOutline,
+            CanvasPixelGrid.GetBrushBounds(
+                layout,
+                start.X,
+                start.Y,
                 BrushSize,
                 Document!.Width,
                 Document.Height));
