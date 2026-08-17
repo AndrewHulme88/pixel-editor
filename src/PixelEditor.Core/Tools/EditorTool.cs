@@ -3,5 +3,6 @@ namespace PixelEditor.Core.Tools;
 public enum EditorTool
 {
     Brush,
-    Eraser
+    Eraser,
+    Fill
 }

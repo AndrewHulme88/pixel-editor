@@ -10,6 +10,7 @@ internal static class ToolColorResolver
     {
         EditorTool.Brush => brushColor,
         EditorTool.Eraser => PixelColor.Transparent,
+        EditorTool.Fill => brushColor,
         _ => throw new ArgumentOutOfRangeException(nameof(tool), tool, "Unsupported editor tool.")
     };
 }

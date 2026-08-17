@@ -59,6 +59,7 @@ public sealed class PixelCanvas : Control
     private PixelCoordinate? _straightLineStart;
     private PixelCoordinate? _straightLineEnd;
     private DocumentHistory? _activeHistory;
+    private BitmapUpdateBatch? _bitmapUpdateBatch;
     private double? _pixelScale;
     private Vector _panOffset;
     private Point _lastPanPosition;
@@ -212,6 +213,13 @@ public sealed class PixelCanvas : Control
             !pointerPoint.Properties.IsLeftButtonPressed ||
             !TryGetPixelCoordinate(e.GetPosition(this), out var coordinate))
         {
+            return;
+        }
+
+        if (ActiveTool == EditorTool.Fill)
+        {
+            FillAt(document, coordinate);
+            e.Handled = true;
             return;
         }
 
@@ -479,6 +487,51 @@ public sealed class PixelCanvas : Control
         SetHoveredPixel(end);
     }
 
+    private void FillAt(PixelDocument document, PixelCoordinate coordinate)
+    {
+        var color = ToolColorResolver.Resolve(ActiveTool, BrushColor);
+
+        if (document.GetPixel(coordinate.X, coordinate.Y) == color)
+        {
+            SetHoveredPixel(coordinate);
+            return;
+        }
+
+        var history = History;
+        history?.BeginChangeSet(document);
+
+        try
+        {
+            if (_bitmap is null)
+            {
+                FillTool.Fill(document, coordinate.X, coordinate.Y, color);
+            }
+            else
+            {
+                using var framebuffer = _bitmap.Lock();
+                _bitmapUpdateBatch = new BitmapUpdateBatch(
+                    framebuffer.Address,
+                    framebuffer.RowBytes);
+
+                try
+                {
+                    FillTool.Fill(document, coordinate.X, coordinate.Y, color);
+                }
+                finally
+                {
+                    _bitmapUpdateBatch = null;
+                }
+            }
+        }
+        finally
+        {
+            history?.CommitChangeSet();
+            InvalidateVisual();
+        }
+
+        SetHoveredPixel(coordinate);
+    }
+
     private void EndBrushStroke(IPointer pointer)
     {
         CompleteStroke();
@@ -552,7 +605,7 @@ public sealed class PixelCanvas : Control
                 layout,
                 pixel.X,
                 pixel.Y,
-                BrushSize,
+                ActiveTool == EditorTool.Fill ? BrushTool.MinimumSize : BrushSize,
                 Document!.Width,
                 Document.Height));
     }
@@ -653,20 +706,33 @@ public sealed class PixelCanvas : Control
             return;
         }
 
+        if (_bitmapUpdateBatch is { } batch)
+        {
+            WriteBitmapPixel(batch.Address, batch.RowBytes, e);
+            return;
+        }
+
         using var framebuffer = _bitmap.Lock();
+        WriteBitmapPixel(framebuffer.Address, framebuffer.RowBytes, e);
+        InvalidateVisual();
+    }
+
+    private static void WriteBitmapPixel(
+        IntPtr framebufferAddress,
+        int rowBytes,
+        PixelChangedEventArgs change)
+    {
         var destination = IntPtr.Add(
-            framebuffer.Address,
-            (e.Y * framebuffer.RowBytes) + (e.X * PixelBufferBuilder.BytesPerPixel));
+            framebufferAddress,
+            (change.Y * rowBytes) + (change.X * PixelBufferBuilder.BytesPerPixel));
 
         Span<byte> pixel = stackalloc byte[PixelBufferBuilder.BytesPerPixel];
-        PixelBufferBuilder.WritePremultipliedBgra(e.Color, pixel);
+        PixelBufferBuilder.WritePremultipliedBgra(change.Color, pixel);
 
         for (var index = 0; index < pixel.Length; index++)
         {
             Marshal.WriteByte(destination, index, pixel[index]);
         }
-
-        InvalidateVisual();
     }
 
     private void DisposeBitmap()
@@ -674,4 +740,6 @@ public sealed class PixelCanvas : Control
         _bitmap?.Dispose();
         _bitmap = null;
     }
+
+    private readonly record struct BitmapUpdateBatch(IntPtr Address, int RowBytes);
 }

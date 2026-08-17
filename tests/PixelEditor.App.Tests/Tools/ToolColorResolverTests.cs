@@ -26,6 +26,14 @@ public sealed class ToolColorResolverTests
     }
 
     [Fact]
+    public void Resolve_WithFill_ReturnsBrushColor()
+    {
+        var color = ToolColorResolver.Resolve(EditorTool.Fill, BrushColor);
+
+        Assert.Equal(BrushColor, color);
+    }
+
+    [Fact]
     public void Resolve_WithUnsupportedTool_Throws()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>

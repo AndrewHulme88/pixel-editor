@@ -3,6 +3,7 @@
 These benchmarks measure operations that sit on the editor's active drawing path:
 
 - Continuous horizontal and diagonal brush strokes at representative brush sizes, including document change notifications
+- Flood-filling solid regions at representative canvas sizes
 - Recording and undoing complete strokes at representative brush sizes
 - Full conversion of a document into the premultiplied BGRA format used by Avalonia
 - PNG encoding and decoding at representative canvas sizes
@@ -19,6 +20,8 @@ Run one benchmark group while iterating:
 ```sh
 dotnet run -c Release --project benchmarks/PixelEditor.Benchmarks -- --filter "*BrushToolBenchmarks*"
 ```
+
+Replace `BrushToolBenchmarks` with `FillToolBenchmarks` to focus on flood-fill performance.
 
 Use BenchmarkDotNet's short job for a quicker local comparison:
 

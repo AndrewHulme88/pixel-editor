@@ -5,13 +5,15 @@ A desktop pixel art editor built with C# and Avalonia.
 ## MVP scope
 
 - Pixel canvas
-- Brush and eraser tools
+- Brush, eraser, and fill tools
 - Colour picker
 - Undo and redo
 - Basic editor layout
 - Save and load
 
-## Current milestone: straight-line drawing
+## Current milestone: fill bucket
+
+Select the Fill tool or press `G`, then click a region to replace its contiguous colour with the selected colour. Fill uses edge-connected pixels, respects exact RGBA values, and commits the entire region as one undoable action.
 
 Hold `Shift` before left-dragging to draw a straight line. A non-destructive guide follows the pointer, and releasing commits the line as one undoable action. Straight lines use the current brush or eraser, colour, and brush size.
 
@@ -56,7 +58,7 @@ dotnet run --project pixel-editor.csproj
 
 ## Performance testing
 
-Performance benchmarks cover multiple brush sizes, undo history, canvas resizing, pixel-buffer conversion, and PNG persistence. Run them in Release mode:
+Performance benchmarks cover multiple brush sizes, flood fill, undo history, canvas resizing, pixel-buffer conversion, and PNG persistence. Run them in Release mode:
 
 ```sh
 dotnet run -c Release --project benchmarks/PixelEditor.Benchmarks -- --filter "*"

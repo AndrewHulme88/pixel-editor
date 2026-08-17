@@ -15,6 +15,7 @@ public sealed class MainViewModelTests
         Assert.Equal(EditorTool.Brush, viewModel.ActiveTool);
         Assert.True(viewModel.IsBrushSelected);
         Assert.False(viewModel.IsEraserSelected);
+        Assert.False(viewModel.IsFillSelected);
         Assert.Equal(1, viewModel.BrushSize);
         Assert.False(viewModel.IsDirty);
         Assert.Equal("Untitled - Pixel Editor", viewModel.WindowTitle);
@@ -45,6 +46,19 @@ public sealed class MainViewModelTests
         Assert.Equal(EditorTool.Brush, viewModel.ActiveTool);
         Assert.True(viewModel.IsBrushSelected);
         Assert.False(viewModel.IsEraserSelected);
+    }
+
+    [Fact]
+    public void SelectFillCommand_SelectsFill()
+    {
+        var viewModel = new MainViewModel();
+
+        viewModel.SelectFillCommand.Execute(null);
+
+        Assert.Equal(EditorTool.Fill, viewModel.ActiveTool);
+        Assert.False(viewModel.IsBrushSelected);
+        Assert.False(viewModel.IsEraserSelected);
+        Assert.True(viewModel.IsFillSelected);
     }
 
     [Fact]

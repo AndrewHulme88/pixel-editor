@@ -48,6 +48,25 @@ public sealed class DocumentHistoryTests
     }
 
     [Fact]
+    public void CommittedFill_UndoesAndRedoesAsOneEdit()
+    {
+        var document = new PixelDocument(4, 3);
+        var history = new DocumentHistory();
+
+        history.BeginChangeSet(document);
+        FillTool.Fill(document, 0, 0, Red);
+        Assert.True(history.CommitChangeSet());
+
+        Assert.True(history.Undo());
+        Assert.Equal(PixelColor.Transparent, document.GetPixel(0, 0));
+        Assert.Equal(PixelColor.Transparent, document.GetPixel(3, 2));
+
+        Assert.True(history.Redo());
+        Assert.Equal(Red, document.GetPixel(0, 0));
+        Assert.Equal(Red, document.GetPixel(3, 2));
+    }
+
+    [Fact]
     public void RepeatedPixelChanges_KeepOriginalAndFinalColors()
     {
         var document = new PixelDocument(1, 1);

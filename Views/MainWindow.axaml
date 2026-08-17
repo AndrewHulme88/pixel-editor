@@ -59,6 +59,11 @@
                              HotKey="E"
                              IsChecked="{Binding IsEraserSelected, Mode=OneWay}"
                              Command="{Binding SelectEraserCommand}" />
+                <RadioButton Content="Fill (G)"
+                             GroupName="EditorTools"
+                             HotKey="G"
+                             IsChecked="{Binding IsFillSelected, Mode=OneWay}"
+                             Command="{Binding SelectFillCommand}" />
                 <TextBlock Margin="8,0,0,0"
                            VerticalAlignment="Center"
                            Foreground="#E6E6E6"
@@ -108,7 +113,7 @@
                                Text="{Binding ActiveTool}" />
                     <TextBlock Margin="0,0,18,0"
                                Foreground="#E6E6E6"
-                               Text="· Left-drag to draw · Shift-drag for line" />
+                               Text="· Click to fill · Left-drag to draw · Shift-drag for line" />
                     <TextBlock Foreground="#AFAFAF"
                                Text="Pixel:" />
                     <TextBlock MinWidth="60"
