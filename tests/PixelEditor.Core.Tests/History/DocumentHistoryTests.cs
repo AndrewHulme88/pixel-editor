@@ -53,9 +53,12 @@ public sealed class DocumentHistoryTests
         var document = new PixelDocument(4, 3);
         var history = new DocumentHistory();
 
-        history.BeginChangeSet(document);
-        FillTool.Fill(document, 0, 0, Red);
-        Assert.True(history.CommitChangeSet());
+        var result = FillTool.Fill(document, 0, 0, Red);
+        Assert.True(history.RecordSpanChange(
+            document,
+            result.Spans,
+            result.PreviousColor,
+            result.Color));
 
         Assert.True(history.Undo());
         Assert.Equal(PixelColor.Transparent, document.GetPixel(0, 0));
@@ -64,6 +67,45 @@ public sealed class DocumentHistoryTests
         Assert.True(history.Redo());
         Assert.Equal(Red, document.GetPixel(0, 0));
         Assert.Equal(Red, document.GetPixel(3, 2));
+    }
+
+    [Fact]
+    public void SpanChange_UndoAndRedoEachRaiseOneBulkNotification()
+    {
+        var document = new PixelDocument(8, 6);
+        var history = new DocumentHistory();
+        var result = FillTool.Fill(document, 0, 0, Red);
+        history.RecordSpanChange(
+            document,
+            result.Spans,
+            result.PreviousColor,
+            result.Color);
+        var bulkNotificationCount = 0;
+        var pixelNotificationCount = 0;
+        document.PixelSpansChanged += (_, _) => bulkNotificationCount++;
+        document.PixelChanged += (_, _) => pixelNotificationCount++;
+
+        history.Undo();
+        history.Redo();
+
+        Assert.Equal(2, bulkNotificationCount);
+        Assert.Equal(0, pixelNotificationCount);
+    }
+
+    [Fact]
+    public void RecordSpanChange_WithSpanOutsideDocument_Throws()
+    {
+        var document = new PixelDocument(4, 3);
+        var history = new DocumentHistory();
+        PixelSpan[] spans = [new(3, 1, 2)];
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            history.RecordSpanChange(
+                document,
+                spans,
+                PixelColor.Transparent,
+                Red));
+        Assert.False(history.CanUndo);
     }
 
     [Fact]

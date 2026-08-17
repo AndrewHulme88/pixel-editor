@@ -15,6 +15,8 @@ A desktop pixel art editor built with C# and Avalonia.
 
 Select the Fill tool or press `G`, then click a region to replace its contiguous colour with the selected colour. Fill uses edge-connected pixels, respects exact RGBA values, and commits the entire region as one undoable action.
 
+Fill, undo, and redo store and apply horizontal pixel spans so large regions avoid per-pixel history and bitmap overhead.
+
 Hold `Shift` before left-dragging to draw a straight line. A non-destructive guide follows the pointer, and releasing commits the line as one undoable action. Straight lines use the current brush or eraser, colour, and brush size.
 
 The brush and eraser support square sizes from 1×1 to 64×64 pixels. Choose a common size from the editable toolbar list, type any supported size, press `-` to decrease it, or press `=` to increase it. Thick strokes remain continuous, clip safely at canvas edges, and show their full footprint in the hover indicator.
@@ -35,6 +37,7 @@ Use `Ctrl+N`, `Ctrl+O`, `Ctrl+S`, and `Ctrl+Shift+S` for file operations on Wind
 
 - `pixel-editor.csproj` — Avalonia desktop application
 - `benchmarks/PixelEditor.Benchmarks` — repeatable performance benchmarks
+- [`DEVELOPMENT.md`](DEVELOPMENT.md) — living record of technical decisions, trade-offs, and performance findings
 - `src/PixelEditor.Core` — UI-independent editor and document logic
 - `tests/PixelEditor.App.Tests` — unit tests for rendering and application logic
 - `tests/PixelEditor.Core.Tests` — unit tests for the core library

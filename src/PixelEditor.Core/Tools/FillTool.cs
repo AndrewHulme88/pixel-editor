@@ -4,7 +4,7 @@ namespace PixelEditor.Core.Tools;
 
 public static class FillTool
 {
-    public static int Fill(
+    public static FillResult Fill(
         PixelDocument document,
         int startX,
         int startY,
@@ -16,11 +16,12 @@ public static class FillTool
 
         if (targetColor == color)
         {
-            return 0;
+            return new FillResult([], targetColor, color, 0);
         }
 
         var pendingSeeds = new Stack<int>();
         pendingSeeds.Push((startY * document.Width) + startX);
+        var filledSpans = new List<PixelSpan>();
         var filledPixelCount = 0;
 
         // Filling horizontal spans keeps the pending stack small on large solid regions.
@@ -42,16 +43,23 @@ public static class FillTool
                 left--;
             }
 
+            var right = left;
+
+            while (right < document.Width && document.GetPixel(right, y) == targetColor)
+            {
+                right++;
+            }
+
+            var span = new PixelSpan(left, y, right - left);
+            document.SetPixelSpanWithoutNotification(span, color);
+            filledSpans.Add(span);
+            filledPixelCount += span.Length;
+
             var hasSeedAbove = false;
             var hasSeedBelow = false;
 
-            for (var fillX = left;
-                 fillX < document.Width && document.GetPixel(fillX, y) == targetColor;
-                 fillX++)
+            for (var fillX = left; fillX < right; fillX++)
             {
-                document.SetPixel(fillX, y, color);
-                filledPixelCount++;
-
                 AddAdjacentSeed(
                     document,
                     pendingSeeds,
@@ -69,7 +77,9 @@ public static class FillTool
             }
         }
 
-        return filledPixelCount;
+        var spans = filledSpans.ToArray();
+        document.NotifyPixelSpansChanged(spans, color);
+        return new FillResult(spans, targetColor, color, filledPixelCount);
     }
 
     private static void AddAdjacentSeed(

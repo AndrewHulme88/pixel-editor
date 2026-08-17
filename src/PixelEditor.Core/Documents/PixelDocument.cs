@@ -7,6 +7,8 @@ public sealed class PixelDocument
 
     public event EventHandler<PixelChangedEventArgs>? PixelChanged;
 
+    public event EventHandler<PixelSpansChangedEventArgs>? PixelSpansChanged;
+
     public PixelDocument(int width, int height)
     {
         if (width <= 0)
@@ -61,6 +63,37 @@ public sealed class PixelDocument
                 destination._pixels,
                 ((destinationY + row) * destination.Width) + destinationX,
                 width);
+        }
+    }
+
+    internal void SetPixelSpanWithoutNotification(PixelSpan span, PixelColor color)
+    {
+        Array.Fill(
+            _pixels,
+            color,
+            (span.Y * Width) + span.X,
+            span.Length);
+    }
+
+    internal void ApplyPixelSpans(
+        IReadOnlyList<PixelSpan> spans,
+        PixelColor color)
+    {
+        foreach (var span in spans)
+        {
+            SetPixelSpanWithoutNotification(span, color);
+        }
+
+        NotifyPixelSpansChanged(spans, color);
+    }
+
+    internal void NotifyPixelSpansChanged(
+        IReadOnlyList<PixelSpan> spans,
+        PixelColor color)
+    {
+        if (spans.Count > 0)
+        {
+            PixelSpansChanged?.Invoke(this, new PixelSpansChangedEventArgs(spans, color));
         }
     }
 

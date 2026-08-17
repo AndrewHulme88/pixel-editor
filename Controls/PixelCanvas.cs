@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
@@ -59,7 +60,6 @@ public sealed class PixelCanvas : Control
     private PixelCoordinate? _straightLineStart;
     private PixelCoordinate? _straightLineEnd;
     private DocumentHistory? _activeHistory;
-    private BitmapUpdateBatch? _bitmapUpdateBatch;
     private double? _pixelScale;
     private Vector _panOffset;
     private Point _lastPanPosition;
@@ -497,37 +497,12 @@ public sealed class PixelCanvas : Control
             return;
         }
 
-        var history = History;
-        history?.BeginChangeSet(document);
-
-        try
-        {
-            if (_bitmap is null)
-            {
-                FillTool.Fill(document, coordinate.X, coordinate.Y, color);
-            }
-            else
-            {
-                using var framebuffer = _bitmap.Lock();
-                _bitmapUpdateBatch = new BitmapUpdateBatch(
-                    framebuffer.Address,
-                    framebuffer.RowBytes);
-
-                try
-                {
-                    FillTool.Fill(document, coordinate.X, coordinate.Y, color);
-                }
-                finally
-                {
-                    _bitmapUpdateBatch = null;
-                }
-            }
-        }
-        finally
-        {
-            history?.CommitChangeSet();
-            InvalidateVisual();
-        }
+        var result = FillTool.Fill(document, coordinate.X, coordinate.Y, color);
+        History?.RecordSpanChange(
+            document,
+            result.Spans,
+            result.PreviousColor,
+            result.Color);
 
         SetHoveredPixel(coordinate);
     }
@@ -689,6 +664,7 @@ public sealed class PixelCanvas : Control
         if (_subscribedDocument is not null)
         {
             _subscribedDocument.PixelChanged -= OnPixelChanged;
+            _subscribedDocument.PixelSpansChanged -= OnPixelSpansChanged;
         }
 
         _subscribedDocument = document;
@@ -696,6 +672,7 @@ public sealed class PixelCanvas : Control
         if (_subscribedDocument is not null)
         {
             _subscribedDocument.PixelChanged += OnPixelChanged;
+            _subscribedDocument.PixelSpansChanged += OnPixelSpansChanged;
         }
     }
 
@@ -706,15 +683,63 @@ public sealed class PixelCanvas : Control
             return;
         }
 
-        if (_bitmapUpdateBatch is { } batch)
-        {
-            WriteBitmapPixel(batch.Address, batch.RowBytes, e);
-            return;
-        }
-
         using var framebuffer = _bitmap.Lock();
         WriteBitmapPixel(framebuffer.Address, framebuffer.RowBytes, e);
         InvalidateVisual();
+    }
+
+    private void OnPixelSpansChanged(object? sender, PixelSpansChangedEventArgs e)
+    {
+        if (_bitmap is null ||
+            !ReferenceEquals(sender, Document) ||
+            e.Spans.Count == 0)
+        {
+            return;
+        }
+
+        var maximumLength = 0;
+
+        foreach (var span in e.Spans)
+        {
+            maximumLength = Math.Max(maximumLength, span.Length);
+        }
+
+        var maximumByteCount = checked(maximumLength * PixelBufferBuilder.BytesPerPixel);
+        var spanBuffer = ArrayPool<byte>.Shared.Rent(maximumByteCount);
+
+        try
+        {
+            FillPixelBuffer(spanBuffer.AsSpan(0, maximumByteCount), e.Color);
+
+            using var framebuffer = _bitmap.Lock();
+
+            foreach (var span in e.Spans)
+            {
+                var destination = IntPtr.Add(
+                    framebuffer.Address,
+                    (span.Y * framebuffer.RowBytes) +
+                    (span.X * PixelBufferBuilder.BytesPerPixel));
+                var byteCount = span.Length * PixelBufferBuilder.BytesPerPixel;
+                Marshal.Copy(spanBuffer, 0, destination, byteCount);
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(spanBuffer);
+        }
+
+        InvalidateVisual();
+    }
+
+    private static void FillPixelBuffer(Span<byte> buffer, PixelColor color)
+    {
+        Span<byte> pixel = stackalloc byte[PixelBufferBuilder.BytesPerPixel];
+        PixelBufferBuilder.WritePremultipliedBgra(color, pixel);
+
+        for (var offset = 0; offset < buffer.Length; offset += pixel.Length)
+        {
+            pixel.CopyTo(buffer[offset..]);
+        }
     }
 
     private static void WriteBitmapPixel(
@@ -740,6 +765,4 @@ public sealed class PixelCanvas : Control
         _bitmap?.Dispose();
         _bitmap = null;
     }
-
-    private readonly record struct BitmapUpdateBatch(IntPtr Address, int RowBytes);
 }

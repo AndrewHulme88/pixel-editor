@@ -243,6 +243,31 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public void SpanHistoryChange_TracksDirtyStateAndUndo()
+    {
+        var viewModel = new MainViewModel();
+        var result = FillTool.Fill(
+            viewModel.Document,
+            0,
+            0,
+            viewModel.BrushColor);
+
+        viewModel.History.RecordSpanChange(
+            viewModel.Document,
+            result.Spans,
+            result.PreviousColor,
+            result.Color);
+
+        Assert.True(viewModel.IsDirty);
+        Assert.True(viewModel.CanUndo);
+
+        viewModel.UndoCommand.Execute(null);
+
+        Assert.False(viewModel.IsDirty);
+        Assert.Equal(PixelColor.Transparent, viewModel.Document.GetPixel(0, 0));
+    }
+
+    [Fact]
     public void BrushColor_WhenChanged_NotifiesBindings()
     {
         var viewModel = new MainViewModel();

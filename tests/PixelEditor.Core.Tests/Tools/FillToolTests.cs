@@ -14,9 +14,12 @@ public sealed class FillToolTests
     {
         var document = CreateBorderedDocument(5, 5);
 
-        var filledPixelCount = FillTool.Fill(document, 2, 2, FillColor);
+        var result = FillTool.Fill(document, 2, 2, FillColor);
 
-        Assert.Equal(9, filledPixelCount);
+        Assert.Equal(9, result.FilledPixelCount);
+        Assert.Equal(3, result.Spans.Count);
+        Assert.Equal(PixelColor.Transparent, result.PreviousColor);
+        Assert.Equal(FillColor, result.Color);
 
         for (var y = 1; y <= 3; y++)
         {
@@ -46,9 +49,9 @@ public sealed class FillToolTests
         document.SetPixel(0, 0, PixelColor.Transparent);
         document.SetPixel(1, 1, PixelColor.Transparent);
 
-        var filledPixelCount = FillTool.Fill(document, 0, 0, FillColor);
+        var result = FillTool.Fill(document, 0, 0, FillColor);
 
-        Assert.Equal(1, filledPixelCount);
+        Assert.Equal(1, result.FilledPixelCount);
         Assert.Equal(FillColor, document.GetPixel(0, 0));
         Assert.Equal(PixelColor.Transparent, document.GetPixel(1, 1));
     }
@@ -58,9 +61,19 @@ public sealed class FillToolTests
     {
         var document = new PixelDocument(8, 6);
 
-        var filledPixelCount = FillTool.Fill(document, 0, 0, FillColor);
+        var notificationCount = 0;
+        document.PixelSpansChanged += (_, change) =>
+        {
+            notificationCount++;
+            Assert.Equal(FillColor, change.Color);
+        };
 
-        Assert.Equal(document.Width * document.Height, filledPixelCount);
+        var result = FillTool.Fill(document, 0, 0, FillColor);
+
+        Assert.Equal(document.Width * document.Height, result.FilledPixelCount);
+        Assert.Equal(document.Height, result.Spans.Count);
+        Assert.All(result.Spans, span => Assert.Equal(document.Width, span.Length));
+        Assert.Equal(1, notificationCount);
 
         for (var y = 0; y < document.Height; y++)
         {
@@ -77,9 +90,10 @@ public sealed class FillToolTests
         var document = new PixelDocument(3, 3);
         document.SetPixel(1, 1, FillColor);
 
-        var filledPixelCount = FillTool.Fill(document, 1, 1, FillColor);
+        var result = FillTool.Fill(document, 1, 1, FillColor);
 
-        Assert.Equal(0, filledPixelCount);
+        Assert.Equal(0, result.FilledPixelCount);
+        Assert.Empty(result.Spans);
     }
 
     [Fact]
@@ -92,9 +106,9 @@ public sealed class FillToolTests
         document.SetPixel(1, 0, targetColor);
         document.SetPixel(2, 0, boundaryColor);
 
-        var filledPixelCount = FillTool.Fill(document, 0, 0, FillColor);
+        var result = FillTool.Fill(document, 0, 0, FillColor);
 
-        Assert.Equal(2, filledPixelCount);
+        Assert.Equal(2, result.FilledPixelCount);
         Assert.Equal(FillColor, document.GetPixel(0, 0));
         Assert.Equal(FillColor, document.GetPixel(1, 0));
         Assert.Equal(boundaryColor, document.GetPixel(2, 0));
