@@ -88,6 +88,15 @@ public partial class MainWindow : Window
     private async void SaveAs_OnClick(object? sender, RoutedEventArgs e) =>
         await SaveDocumentAsAsync();
 
+    private void ZoomOut_OnClick(object? sender, RoutedEventArgs e) =>
+        EditorCanvas.ZoomOut();
+
+    private void ZoomIn_OnClick(object? sender, RoutedEventArgs e) =>
+        EditorCanvas.ZoomIn();
+
+    private void ResetZoom_OnClick(object? sender, RoutedEventArgs e) =>
+        EditorCanvas.ResetView();
+
     private async Task NewDocumentAsync()
     {
         var dialog = new NewDocumentDialog();

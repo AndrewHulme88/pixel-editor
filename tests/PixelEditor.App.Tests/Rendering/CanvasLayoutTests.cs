@@ -33,6 +33,20 @@ public sealed class CanvasLayoutTests
         Assert.Equal(new Rect(-50, -10, 200, 100), result.Destination);
     }
 
+    [Fact]
+    public void Calculate_WithExplicitScaleAndPan_AppliesViewportTransform()
+    {
+        var result = CanvasLayout.Calculate(
+            10,
+            5,
+            new Size(200, 100),
+            8,
+            new Vector(12, -6));
+
+        Assert.Equal(8, result.PixelScale);
+        Assert.Equal(new Rect(72, 24, 80, 40), result.Destination);
+    }
+
     [Theory]
     [InlineData(0, 1, "documentWidth")]
     [InlineData(-1, 1, "documentWidth")]
@@ -47,5 +61,15 @@ public sealed class CanvasLayoutTests
             () => CanvasLayout.Calculate(width, height, new Size(100, 100)));
 
         Assert.Equal(expectedParameter, exception.ParamName);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void Calculate_WithInvalidExplicitScale_Throws(double scale)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CanvasLayout.Calculate(1, 1, new Size(100, 100), scale, default));
     }
 }

@@ -11,7 +11,9 @@ A desktop pixel art editor built with C# and Avalonia.
 - Basic editor layout
 - Save and load
 
-## Current milestone: new document workflow
+## Current milestone: zoom and pan
+
+The canvas supports discrete pixel-perfect zoom levels with nearest-neighbour rendering. Use the mouse wheel to zoom around the pointer, middle-drag to pan, or use the zoom controls in the status bar. The Fit control recentres the document and returns to automatic sizing.
 
 The editor can create transparent canvases from 1×1 to 4096×4096 pixels. New documents are untitled and marked unsaved immediately, while replacing a document clears its undo and redo history and previous file association.
 

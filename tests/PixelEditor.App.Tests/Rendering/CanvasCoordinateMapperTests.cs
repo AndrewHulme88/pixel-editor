@@ -83,4 +83,28 @@ public sealed class CanvasCoordinateMapperTests
         Assert.True(wasMapped);
         Assert.Equal(new PixelCoordinate(50, 10), coordinate);
     }
+
+    [Fact]
+    public void TryMap_WithPannedLayout_AccountsForViewportOffset()
+    {
+        var pannedLayout = CanvasLayout.Calculate(
+            4,
+            3,
+            new Size(100, 80),
+            10,
+            new Vector(18, -7));
+        var pointer = new Point(
+            pannedLayout.Destination.X + 25,
+            pannedLayout.Destination.Y + 15);
+
+        var wasMapped = CanvasCoordinateMapper.TryMap(
+            pointer,
+            pannedLayout,
+            4,
+            3,
+            out var coordinate);
+
+        Assert.True(wasMapped);
+        Assert.Equal(new PixelCoordinate(2, 1), coordinate);
+    }
 }
