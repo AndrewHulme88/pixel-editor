@@ -47,13 +47,12 @@ public sealed class PixelCanvas : Control
     public static readonly StyledProperty<DocumentHistory?> HistoryProperty =
         AvaloniaProperty.Register<PixelCanvas, DocumentHistory?>(nameof(History));
 
-    private static readonly IBrush CheckerLight = new SolidColorBrush(Color.FromRgb(214, 214, 214));
-    private static readonly IBrush CheckerDark = new SolidColorBrush(Color.FromRgb(174, 174, 174));
     private static readonly IPen CanvasBorder = new Pen(new SolidColorBrush(Color.FromRgb(96, 96, 96)));
     private static readonly IBrush HoverFill = new SolidColorBrush(Color.FromArgb(48, 255, 255, 255));
     private static readonly IPen HoverOutline = new Pen(Brushes.White, 1);
 
     private WriteableBitmap? _bitmap;
+    private readonly CheckerboardBrushCache _checkerboardBrushCache = new();
     private PixelDocument? _subscribedDocument;
     private PixelCoordinate? _hoveredPixel;
     private PixelCoordinate? _lastPaintedPixel;
@@ -137,7 +136,7 @@ public sealed class PixelCanvas : Control
         }
 
         var layout = GetCanvasLayout();
-        DrawTransparencyBackground(context, layout, new Rect(Bounds.Size));
+        DrawTransparencyBackground(context, layout);
 
         var source = new Rect(0, 0, Document.Width, Document.Height);
         context.DrawImage(_bitmap, source, layout.Destination);
@@ -377,35 +376,15 @@ public sealed class PixelCanvas : Control
         InvalidateVisual();
     }
 
-    private static void DrawTransparencyBackground(
+    private void DrawTransparencyBackground(
         DrawingContext context,
-        CanvasLayoutResult layout,
-        Rect canvasBounds)
+        CanvasLayoutResult layout)
     {
-        var destination = layout.Destination;
-        using var clip = context.PushClip(destination);
-        context.FillRectangle(CheckerLight, destination);
-
-        var visible = destination.Intersect(canvasBounds);
-        var firstColumn = Math.Max(0, (int)Math.Floor((visible.X - destination.X) / layout.PixelScale));
-        var firstRow = Math.Max(0, (int)Math.Floor((visible.Y - destination.Y) / layout.PixelScale));
-        var lastColumn = (int)Math.Ceiling((visible.Right - destination.X) / layout.PixelScale);
-        var lastRow = (int)Math.Ceiling((visible.Bottom - destination.Y) / layout.PixelScale);
-
-        for (var row = firstRow; row < lastRow; row++)
-        {
-            for (var column = firstColumn; column < lastColumn; column++)
-            {
-                if ((row + column) % 2 == 0)
-                {
-                    continue;
-                }
-
-                context.FillRectangle(
-                    CheckerDark,
-                    CanvasPixelGrid.GetPixelBounds(layout, column, row));
-            }
-        }
+        var checkerboardLayout = CheckerboardRenderLayout.Calculate(layout);
+        using var transform = context.PushTransform(checkerboardLayout.DocumentToScreen);
+        context.FillRectangle(
+            _checkerboardBrushCache.GetBrush(),
+            checkerboardLayout.DocumentBounds);
     }
 
     private void UpdateHoveredPixel(Point pointerPosition)

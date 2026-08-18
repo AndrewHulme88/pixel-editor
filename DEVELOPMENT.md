@@ -42,7 +42,7 @@ Tool comparisons use exact RGBA equality. For example, the fill bucket treats tw
 
 The document is displayed through a `WriteableBitmap` with nearest-neighbour interpolation. This preserves hard pixel edges at every zoom level. Each brush segment and each bulk span change updates the bitmap under one lock and invalidates the canvas once.
 
-The transparency checkerboard is calculated from document pixel bounds so it remains aligned with the actual pixels at all scales.
+The transparency checkerboard uses a tiled vector brush sized from the document pixel scale, so it remains aligned with actual pixels without drawing each checker cell separately.
 
 ### D005: View models use CommunityToolkit.Mvvm generation
 
@@ -94,7 +94,38 @@ The visible brush remains a sequence of square stamps along the same integer ras
 
 The canvas keeps one bitmap lock for the complete pointer segment and requests one redraw after that segment. Pixel notifications still occur for genuinely changed pixels so existing history behaviour remains unchanged.
 
+### D014: Transparency uses a cached vector tile
+
+The checkerboard is represented by a 2×2 vector tile in document coordinates and repeated by Avalonia's `DrawingBrush`. The complete checker drawing is transformed with the canvas pixel scale and destination origin, preserving one checker cell per document pixel through zoom and pan.
+
+The same lightweight brush is reused at every scale; only the render transform changes. A full-canvas checker bitmap was rejected because it would add roughly another 64 MiB at 4096×4096.
+
 ## Performance findings and blockers
+
+### Transparency checkerboard rendering
+
+Status: addressed with one cached tiled drawing command
+
+Observed risk: the canvas previously iterated through every visible document pixel during every render and issued a dark rectangle command for half of them. A 1024×1024 visible region required 524,289 background drawing commands including the light base, while a fully visible 4096×4096 canvas required 8,388,609.
+
+Resolution:
+
+- A three-rectangle 2×2 vector pattern now represents the light and dark checker cells.
+- Avalonia repeats that pattern across the canvas with one `FillRectangle` call.
+- The pattern is drawn in document coordinates and transformed with the same origin and scale as canvas pixels, so zooming and panning do not change checker parity.
+- The brush is reused across all pixel scales.
+- Headless tests verify cache reuse, tile mode, colours, geometry, and exact checker-to-pixel coordinate mapping at a fractional canvas origin.
+
+Reference smoke measurement on 18 August 2026:
+
+- Machine: Apple M4 running .NET 10.0.9.
+- Benchmark: one BenchmarkDotNet Dry iteration of only the removed CPU-side dark-cell enumeration and rectangle-bound calculation.
+- 1024×1024 visible pixels: approximately 0.84 ms for 524,288 dark cells.
+- 4096×4096 visible pixels: approximately 7.74 ms for 8,388,608 dark cells.
+
+These figures deliberately exclude the much larger cost of submitting and processing the corresponding Avalonia drawing commands. The new path removes that enumeration and submits one tiled fill. A cached-brush microbenchmark was not used for a timing comparison because a one-operation Dry run was dominated by Avalonia and JIT cold-start cost rather than steady-state render work. Manual testing should confirm visual alignment at several zoom levels and while panning.
+
+Correction on 18 August 2026: the first tiled implementation scaled its destination rectangle in brush space and did not reliably share the canvas pixel origin. It was fast but visibly misaligned. The corrected implementation keeps the tile in document space and applies an explicit document-to-screen transform. A coordinate-level regression test now compares checker boundaries directly with `CanvasPixelGrid` bounds.
 
 ### Maximum-size brush and line drawing
 
@@ -183,7 +214,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 
 - **Maximum-size brush lag — addressed:** merged overlapping brush coverage and batched bitmap updates as recorded above.
 - **PNG import limits — planned:** decoded image dimensions are not currently capped at the 4096×4096 editor limit. Document size rules should be centralised and shared by creation, resizing, and import before untrusted or very large files are supported.
-- **Checkerboard rendering cost — planned:** the transparency background draws rectangles for visible document pixels. Large visible canvases can therefore add substantial render work; cache or tile the checkerboard after the brush fix is manually verified.
+- **Checkerboard rendering cost — addressed:** replaced per-cell drawing with the cached vector tile recorded above.
 - **UI workflow coverage — planned:** core behaviour has good unit coverage, but pointer gestures, platform hotkeys, dialogs, and save/close workflows need headless Avalonia integration tests.
 - **Initial sample document state — planned:** the populated startup sample is treated as clean and can close without a save prompt. Decide whether startup should use a blank document or mark sample content as unsaved.
 - **File workflow hardening — planned:** async file commands have no re-entry guard, and saving writes directly to the target path. Add command gating and an atomic temporary-file replacement strategy before persistence becomes more complex.
@@ -207,6 +238,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 12. Added a four-connected fill bucket with the `G` shortcut.
 13. Reworked fill, history, and canvas updates around bulk pixel spans after maximum-canvas performance testing exposed per-pixel overhead.
 14. Optimised maximum-size brush strokes by merging overlapping coverage, batching bitmap updates, and adding a maximum-canvas benchmark.
+15. Replaced per-cell checkerboard rendering with a scale-aware cached vector tile.
 
 ## Deferred or open decisions
 
