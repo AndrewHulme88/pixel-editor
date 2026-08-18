@@ -8,16 +8,20 @@ namespace PixelEditor.Ui.Tests;
 public sealed class WindowSmokeTests
 {
     [AvaloniaFact]
-    public void MainWindow_CanOpenAndCloseHeadlessly()
+    public void MainWindow_WithBlankStartupDocument_ClosesWithoutConfirmation()
     {
+        var viewModel = new MainViewModel();
         var window = new MainWindow
         {
-            DataContext = new MainViewModel()
+            DataContext = viewModel
         };
 
         window.Show();
 
         Assert.True(window.IsVisible);
+        Assert.False(viewModel.IsDirty);
         window.Close();
+        Assert.False(window.IsVisible);
+        Assert.Empty(window.OwnedWindows);
     }
 }

@@ -112,6 +112,12 @@ The new-document and resize dialogs read the same constants instead of repeating
 
 The UI test project includes the xUnit v3 Visual Studio adapter so the existing `dotnet test pixel-editor.slnx` command continues to run every test project without changing the solution-wide runner. Headless application state uses the default per-test isolation to prevent windows, focus, and dispatcher state leaking between workflows.
 
+### D017: Startup uses a clean blank document
+
+The editor opens with a transparent 16×16 document instead of generated sample artwork. This gives drawing tools an immediately usable canvas without presenting pre-existing pixels that can be discarded without an unsaved-changes warning.
+
+The startup document is intentionally clean, so closing the app before editing does not prompt. Choosing New remains an explicit document-replacement action and continues to create a dirty untitled document that requires confirmation before it is discarded.
+
 ## Performance findings and blockers
 
 ### Oversized PNG import allocation risk
@@ -260,7 +266,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 - **PNG import limits — addressed:** core construction, dialogs, resizing, and metadata-first PNG import now share one inclusive 1–4096 dimension policy.
 - **Checkerboard rendering cost — addressed:** replaced per-cell drawing with the cached vector tile recorded above.
 - **UI workflow coverage — addressed for in-process workflows:** headless tests now cover pointer gestures, platform hotkeys, modal dialogs, new-document flow, and Cancel/Don't Save close behavior. Native picker-backed Open and Save paths remain with file-workflow hardening.
-- **Initial sample document state — planned:** the populated startup sample is treated as clean and can close without a save prompt. Decide whether startup should use a blank document or mark sample content as unsaved.
+- **Startup document state — addressed:** the editor now starts with a clean transparent 16×16 canvas, while explicitly created new documents remain dirty.
 - **File workflow hardening — planned:** async file commands have no re-entry guard, and saving writes directly to the target path. Add command gating and an atomic temporary-file replacement strategy before persistence becomes more complex.
 - **History memory budget — monitor:** brush history stores individual pixel changes and has no memory cap. Establish a measurable budget before layers, animation, or larger operations multiply document and history memory.
 - **UI class growth — monitor:** `PixelCanvas` and `MainWindow` code-behind are becoming coordination hotspots. Extract focused collaborators when the next features make their responsibilities harder to follow, rather than splitting them solely by line count.
@@ -285,6 +291,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 15. Replaced per-cell checkerboard rendering with a scale-aware cached vector tile.
 16. Centralised the supported document dimensions and rejected oversized PNG metadata before decode allocation.
 17. Added a separate Avalonia headless suite for pointer, keyboard, dialog, new-document, and dirty-close workflows.
+18. Replaced the generated startup artwork with a clean transparent 16×16 canvas and added startup-state regression coverage.
 
 ## Deferred or open decisions
 

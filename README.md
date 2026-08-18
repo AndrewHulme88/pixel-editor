@@ -27,7 +27,7 @@ The Image menu can resize the canvas from 1×1 to 4096×4096 pixels using nine a
 
 The canvas also supports discrete pixel-perfect zoom levels with nearest-neighbour rendering. Use the mouse wheel to zoom around the pointer, middle-drag to pan, or use the zoom controls in the status bar. The Fit control recentres the document and returns to automatic sizing.
 
-The editor can create transparent canvases from 1×1 to 4096×4096 pixels. New documents are untitled and marked unsaved immediately, while replacing a document clears its undo and redo history and previous file association.
+The editor starts with a clean, transparent 16×16 canvas and can create canvases from 1×1 to 4096×4096 pixels. Explicitly created new documents are untitled and marked unsaved immediately, while replacing a document clears its undo and redo history and previous file association.
 
 The editor can also open, save, and save as PNG through native file dialogs. PNG encoding and decoding use SkiaSharp and preserve exact RGBA values, including partial transparency.
 

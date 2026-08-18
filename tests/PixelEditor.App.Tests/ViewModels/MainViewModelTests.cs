@@ -8,6 +8,27 @@ namespace PixelEditor.App.Tests.ViewModels;
 public sealed class MainViewModelTests
 {
     [Fact]
+    public void NewViewModel_StartsWithCleanBlankDocument()
+    {
+        var viewModel = new MainViewModel();
+
+        Assert.Equal(16, viewModel.Document.Width);
+        Assert.Equal(16, viewModel.Document.Height);
+        Assert.Equal("Untitled", viewModel.DocumentName);
+        Assert.False(viewModel.IsDirty);
+        Assert.False(viewModel.CanUndo);
+        Assert.False(viewModel.CanRedo);
+
+        for (var y = 0; y < viewModel.Document.Height; y++)
+        {
+            for (var x = 0; x < viewModel.Document.Width; x++)
+            {
+                Assert.Equal(PixelColor.Transparent, viewModel.Document.GetPixel(x, y));
+            }
+        }
+    }
+
+    [Fact]
     public void NewViewModel_SelectsBrush()
     {
         var viewModel = new MainViewModel();
