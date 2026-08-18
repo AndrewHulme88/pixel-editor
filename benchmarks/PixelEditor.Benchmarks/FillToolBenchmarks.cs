@@ -22,7 +22,7 @@ public class FillToolBenchmarks
     public void Setup()
     {
         _document = new PixelDocument(CanvasSize, CanvasSize);
-        _document.PixelChanged += OnPixelChanged;
+        _document.PixelSpansChanged += OnPixelSpansChanged;
     }
 
     [Benchmark]
@@ -35,7 +35,7 @@ public class FillToolBenchmarks
         return _useFirstColor ? FirstColor : SecondColor;
     }
 
-    private static void OnPixelChanged(object? sender, PixelChangedEventArgs change)
+    private static void OnPixelSpansChanged(object? sender, PixelSpansChangedEventArgs change)
     {
     }
 }

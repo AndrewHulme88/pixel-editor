@@ -144,6 +144,12 @@ The limit is constructor-configurable for tests and future preferences. Active b
 
 Hovering and other passive pointer movement do not change focus. A headless workflow test selects a brush size, focuses the selector, draws on the canvas, and confirms that the platform undo shortcut reaches document history.
 
+### D022: Views remain explicitly constructed until navigation is needed
+
+The initial Avalonia `ViewLocator` used reflection-based naming conventions but no application workflow consumed it; startup constructs `MainWindow` directly and dialogs are created by their owning workflow. The locator and its application-level data template were removed to avoid unused reflection and trimming annotations.
+
+If future navigation introduces view-model-first composition, it should use an explicit, testable mapping appropriate to the actual navigation requirements rather than restoring unused scaffold code.
+
 ## Performance findings and blockers
 
 ### Oversized PNG import allocation risk
@@ -296,7 +302,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 - **File workflow hardening — in progress:** document operations now share a re-entry guard that also blocks overlapping close requests. Saving still writes directly to the selected target; atomic temporary-file replacement is the next separate fix.
 - **History memory budget — addressed for retained entries:** undo and redo now use a 128 MiB estimated default budget and evict the oldest usable actions first. Temporary active-stroke recording remains measurable but is not retained after commit.
 - **UI class growth — partially addressed:** viewport state and pan/zoom transitions now live in a tested `CanvasViewportController`. `PixelCanvas` still coordinates drawing and bitmap updates, while `MainWindow` coordinates document dialogs and persistence; extract those areas separately when their next changes provide a clear boundary.
-- **Project cleanup — planned:** remove the unused `ViewLocator` scaffold or make it intentional, correct its existing formatting issue, and update the fill benchmark's obsolete single-pixel event subscription.
+- **Project cleanup — addressed:** removed the unused reflection-based `ViewLocator`, its AXAML registration, and the empty `Models` project placeholder. The fill benchmark now subscribes to the bulk span notification emitted by the current fill implementation, and solution formatting validation passes.
 
 ## Milestone record
 
@@ -322,6 +328,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 20. Added estimated history memory accounting, a 128 MiB default limit, oldest-entry eviction, and a sustained-eviction benchmark.
 21. Extracted fit, zoom, and pan state from `PixelCanvas` into a focused viewport controller with direct unit coverage.
 22. Fixed document shortcuts after brush-size selection by transferring focus to the canvas when editing begins.
+23. Removed unused Avalonia scaffold code and aligned the fill benchmark with bulk span notifications.
 
 ## Deferred or open decisions
 
