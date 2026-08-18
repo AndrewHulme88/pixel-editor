@@ -19,6 +19,8 @@ Select the Fill tool or press `G`, then click a region to replace its contiguous
 
 Fill, undo, and redo store and apply horizontal pixel spans so large regions avoid per-pixel history and bitmap overhead.
 
+Undo and redo retain an estimated maximum of 128 MiB by default. When that budget is reached, the oldest undo actions are discarded first so extended editing sessions cannot grow retained history indefinitely.
+
 Hold `Shift` before left-dragging to draw a straight line. A non-destructive guide follows the pointer, and releasing commits the line as one undoable action. Straight lines use the current brush or eraser, colour, and brush size.
 
 The brush and eraser support square sizes from 1×1 to 64×64 pixels. Choose a common size from the editable toolbar list, type any supported size, press `-` to decrease it, or press `=` to increase it. Thick strokes remain continuous, clip safely at canvas edges, and show their full footprint in the hover indicator.

@@ -8,6 +8,7 @@ These benchmarks measure operations that sit on the editor's active drawing path
 - Flood-filling solid regions at representative canvas sizes
 - Recording, undoing, and redoing fills up to the maximum 4096×4096 canvas size
 - Recording and undoing complete strokes at representative brush sizes
+- Retaining and trimming pixel edits against a fixed history memory budget
 - Full conversion of a document into the premultiplied BGRA format used by Avalonia
 - PNG encoding and decoding at representative canvas sizes
 - Growing and shrinking canvases while preserving anchored pixels
@@ -27,6 +28,7 @@ dotnet run -c Release --project benchmarks/PixelEditor.Benchmarks -- --filter "*
 Replace `BrushToolBenchmarks` with `FillToolBenchmarks` to focus on flood-fill performance.
 Use `FillHistoryBenchmarks` to measure the complete fill history path, including the maximum canvas size.
 Use `MaximumBrushStrokeBenchmarks` to isolate the maximum horizontal and diagonal brush workload.
+Use `HistoryMemoryLimitBenchmarks` to measure the cost of evicting old undo entries under sustained editing.
 Use `CheckerboardRenderBenchmarks` to measure the CPU enumeration avoided by tiled checkerboard rendering. It is a reference workload and does not measure Avalonia's rendering backend.
 
 Use BenchmarkDotNet's short job for a quicker local comparison:

@@ -16,10 +16,21 @@ public sealed class DocumentHistoryTests
         var history = new DocumentHistory();
 
         Assert.Equal(0, history.CurrentStateId);
+        Assert.Equal(DocumentHistory.DefaultMemoryLimitBytes, history.MemoryLimitBytes);
+        Assert.Equal(0, history.EstimatedMemoryUsageBytes);
         Assert.False(history.CanUndo);
         Assert.False(history.CanRedo);
         Assert.False(history.Undo());
         Assert.False(history.Redo());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Constructor_WithInvalidMemoryLimit_Throws(long memoryLimitBytes)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new DocumentHistory(memoryLimitBytes));
     }
 
     [Fact]
@@ -257,6 +268,78 @@ public sealed class DocumentHistoryTests
 
         Assert.False(history.CanUndo);
         Assert.False(history.CanRedo);
+        Assert.Equal(0, history.EstimatedMemoryUsageBytes);
+    }
+
+    [Fact]
+    public void MemoryLimit_EvictsOldestUndoEntries()
+    {
+        var entrySize = MeasureSinglePixelEntrySize();
+        var document = new PixelDocument(3, 1);
+        var history = new DocumentHistory(entrySize * 2);
+
+        RecordPixel(history, document, 0, Red);
+        RecordPixel(history, document, 1, Red);
+        RecordPixel(history, document, 2, Red);
+
+        Assert.Equal(entrySize * 2, history.EstimatedMemoryUsageBytes);
+        Assert.True(history.Undo());
+        Assert.Equal(PixelColor.Transparent, document.GetPixel(2, 0));
+        Assert.True(history.Undo());
+        Assert.Equal(PixelColor.Transparent, document.GetPixel(1, 0));
+        Assert.False(history.Undo());
+        Assert.Equal(Red, document.GetPixel(0, 0));
+    }
+
+    [Fact]
+    public void EntryLargerThanMemoryLimit_IsNotRetainedAndBreaksPreviousChain()
+    {
+        var entrySize = MeasureSinglePixelEntrySize();
+        var document = new PixelDocument(2, 1);
+        var history = new DocumentHistory(entrySize);
+        RecordPixel(history, document, 0, Red);
+        var firstStateId = history.CurrentStateId;
+
+        history.BeginChangeSet(document);
+        document.SetPixel(0, 0, Blue);
+        document.SetPixel(1, 0, Blue);
+
+        Assert.False(history.CommitChangeSet());
+        Assert.NotEqual(firstStateId, history.CurrentStateId);
+        Assert.Equal(0, history.EstimatedMemoryUsageBytes);
+        Assert.False(history.CanUndo);
+        Assert.Equal(Blue, document.GetPixel(0, 0));
+        Assert.Equal(Blue, document.GetPixel(1, 0));
+    }
+
+    [Fact]
+    public void UndoRedoAndBranching_UpdateRetainedMemory()
+    {
+        var document = new PixelDocument(3, 1);
+        var history = new DocumentHistory();
+        RecordPixel(history, document, 0, Red);
+        RecordPixel(history, document, 1, Red);
+        var twoEntrySize = history.EstimatedMemoryUsageBytes;
+
+        history.Undo();
+        Assert.Equal(twoEntrySize, history.EstimatedMemoryUsageBytes);
+
+        history.Redo();
+        Assert.Equal(twoEntrySize, history.EstimatedMemoryUsageBytes);
+
+        history.Undo();
+        RecordPixel(history, document, 2, Blue);
+
+        Assert.Equal(twoEntrySize, history.EstimatedMemoryUsageBytes);
+        Assert.False(history.CanRedo);
+    }
+
+    private static long MeasureSinglePixelEntrySize()
+    {
+        var document = new PixelDocument(1, 1);
+        var history = new DocumentHistory();
+        RecordPixel(history, document, 0, Red);
+        return history.EstimatedMemoryUsageBytes;
     }
 
     private static void RecordPixel(

@@ -124,6 +124,14 @@ New, Open, Save, Save As, and Resize share one asynchronous re-entry guard. Menu
 
 Closing is cancelled while another document workflow is active. Dirty-close confirmation also holds the same guard, so repeated close requests cannot open duplicate confirmation dialogs. The guard is released in a `finally` block so cancellation and errors do not leave file operations permanently disabled.
 
+### D019: History has a bounded retained-memory budget
+
+Undo and redo retain an estimated maximum of 128 MiB by default. Pixel edits are counted from their 16-byte change records, fills from their 12-byte spans, and each history item includes a conservative fixed allowance for its objects, array, and linked-list node. The estimate intentionally describes retained history payload rather than exact process memory, which varies by runtime.
+
+When a new entry exceeds the remaining budget, the oldest undo entries are removed first. Undo and redo only move entries and therefore do not change retained usage; branching releases the redo chain, and clearing history resets usage to zero. If one action is larger than the complete budget, it is not retained and the earlier chain is cleared because it can no longer be applied safely across that unrecorded state.
+
+The limit is constructor-configurable for tests and future preferences. Active brush recording still uses a temporary dictionary before a committed entry is sized; this is short-lived and remains a separate profiling consideration if future tools can produce substantially larger single actions.
+
 ## Performance findings and blockers
 
 ### Oversized PNG import allocation risk
@@ -274,7 +282,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 - **UI workflow coverage — addressed for in-process workflows:** headless tests now cover pointer gestures, platform hotkeys, modal dialogs, new-document flow, and Cancel/Don't Save close behavior. Native picker-backed Open and Save paths remain with file-workflow hardening.
 - **Startup document state — addressed:** the editor now starts with a clean transparent 16×16 canvas, while explicitly created new documents remain dirty.
 - **File workflow hardening — in progress:** document operations now share a re-entry guard that also blocks overlapping close requests. Saving still writes directly to the selected target; atomic temporary-file replacement is the next separate fix.
-- **History memory budget — monitor:** brush history stores individual pixel changes and has no memory cap. Establish a measurable budget before layers, animation, or larger operations multiply document and history memory.
+- **History memory budget — addressed for retained entries:** undo and redo now use a 128 MiB estimated default budget and evict the oldest usable actions first. Temporary active-stroke recording remains measurable but is not retained after commit.
 - **UI class growth — monitor:** `PixelCanvas` and `MainWindow` code-behind are becoming coordination hotspots. Extract focused collaborators when the next features make their responsibilities harder to follow, rather than splitting them solely by line count.
 - **Project cleanup — planned:** remove the unused `ViewLocator` scaffold or make it intentional, correct its existing formatting issue, and update the fill benchmark's obsolete single-pixel event subscription.
 
@@ -299,6 +307,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 17. Added a separate Avalonia headless suite for pointer, keyboard, dialog, new-document, and dirty-close workflows.
 18. Replaced the generated startup artwork with a clean transparent 16×16 canvas and added startup-state regression coverage.
 19. Serialised asynchronous document workflows to prevent duplicate dialogs, overlapping file operations, and close races.
+20. Added estimated history memory accounting, a 128 MiB default limit, oldest-entry eviction, and a sustained-eviction benchmark.
 
 ## Deferred or open decisions
 

@@ -5,17 +5,41 @@ namespace PixelEditor.Core.History;
 // Stores reversible pixel edits without copying the entire document.
 public sealed class DocumentHistory
 {
-    private readonly Stack<HistoryEntry> _undoStack = new();
-    private readonly Stack<HistoryEntry> _redoStack = new();
+    public const long DefaultMemoryLimitBytes = 128L * 1024 * 1024;
+
+    private const int EstimatedHistoryEntryOverheadBytes = 128;
+    private const int PixelChangePayloadBytes = 16;
+    private const int PixelSpanPayloadBytes = 12;
+
+    private readonly LinkedList<HistoryEntry> _undoEntries = new();
+    private readonly LinkedList<HistoryEntry> _redoEntries = new();
     private ActiveChangeSet? _activeChangeSet;
     private long _currentStateId;
+    private long _estimatedMemoryUsageBytes;
     private long _nextStateId;
+
+    public DocumentHistory(long memoryLimitBytes = DefaultMemoryLimitBytes)
+    {
+        if (memoryLimitBytes <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(memoryLimitBytes),
+                "The history memory limit must be greater than zero.");
+        }
+
+        MemoryLimitBytes = memoryLimitBytes;
+    }
 
     public event EventHandler? Changed;
 
-    public bool CanUndo => _activeChangeSet is null && _undoStack.Count > 0;
+    public bool CanUndo => _activeChangeSet is null && _undoEntries.Count > 0;
 
-    public bool CanRedo => _activeChangeSet is null && _redoStack.Count > 0;
+    public bool CanRedo => _activeChangeSet is null && _redoEntries.Count > 0;
+
+    public long MemoryLimitBytes { get; }
+
+    // Estimates retained undo and redo payloads without counting active stroke recording.
+    public long EstimatedMemoryUsageBytes => _estimatedMemoryUsageBytes;
 
     // Identifies the current point in history so saved states can be recognized after undo or redo.
     public long CurrentStateId => _currentStateId;
@@ -49,11 +73,13 @@ public sealed class DocumentHistory
 
         if (edit.Length > 0)
         {
-            PushChange(changeSet.Document, new PixelHistoryChange(edit));
+            var wasRecorded = PushChange(changeSet.Document, new PixelHistoryChange(edit));
+            Changed?.Invoke(this, EventArgs.Empty);
+            return wasRecorded;
         }
 
         Changed?.Invoke(this, EventArgs.Empty);
-        return edit.Length > 0;
+        return false;
     }
 
     public bool RecordSpanChange(
@@ -85,11 +111,11 @@ public sealed class DocumentHistory
             recordedSpans[index] = span;
         }
 
-        PushChange(
+        var wasRecorded = PushChange(
             document,
             new UniformSpanHistoryChange(recordedSpans, previousColor, color));
         Changed?.Invoke(this, EventArgs.Empty);
-        return true;
+        return wasRecorded;
     }
 
     public bool Undo()
@@ -99,11 +125,12 @@ public sealed class DocumentHistory
             return false;
         }
 
-        var edit = _undoStack.Pop();
+        var edit = _undoEntries.Last!.Value;
+        _undoEntries.RemoveLast();
 
         edit.Change.Undo(edit.Document);
 
-        _redoStack.Push(edit);
+        _redoEntries.AddLast(edit);
         _currentStateId = edit.PreviousStateId;
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
@@ -116,11 +143,12 @@ public sealed class DocumentHistory
             return false;
         }
 
-        var edit = _redoStack.Pop();
+        var edit = _redoEntries.Last!.Value;
+        _redoEntries.RemoveLast();
 
         edit.Change.Redo(edit.Document);
 
-        _undoStack.Push(edit);
+        _undoEntries.AddLast(edit);
         _currentStateId = edit.ResultStateId;
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
@@ -133,13 +161,14 @@ public sealed class DocumentHistory
             throw new InvalidOperationException("History cannot be cleared while recording changes.");
         }
 
-        if (_undoStack.Count == 0 && _redoStack.Count == 0)
+        if (_undoEntries.Count == 0 && _redoEntries.Count == 0)
         {
             return;
         }
 
-        _undoStack.Clear();
-        _redoStack.Clear();
+        _undoEntries.Clear();
+        _redoEntries.Clear();
+        _estimatedMemoryUsageBytes = 0;
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -151,16 +180,47 @@ public sealed class DocumentHistory
         }
     }
 
-    private void PushChange(PixelDocument document, IHistoryChange change)
+    private bool PushChange(PixelDocument document, IHistoryChange change)
     {
         var nextStateId = checked(++_nextStateId);
-        _undoStack.Push(new HistoryEntry(
+        var entry = new HistoryEntry(
             document,
             change,
             _currentStateId,
-            nextStateId));
-        _redoStack.Clear();
+            nextStateId,
+            checked(EstimatedHistoryEntryOverheadBytes + change.EstimatedMemoryBytes));
+
+        ClearEntries(_redoEntries);
         _currentStateId = nextStateId;
+
+        if (entry.EstimatedMemoryBytes > MemoryLimitBytes)
+        {
+            ClearEntries(_undoEntries);
+            return false;
+        }
+
+        _undoEntries.AddLast(entry);
+        _estimatedMemoryUsageBytes = checked(
+            _estimatedMemoryUsageBytes + entry.EstimatedMemoryBytes);
+
+        while (_estimatedMemoryUsageBytes > MemoryLimitBytes)
+        {
+            var oldestEntry = _undoEntries.First!.Value;
+            _undoEntries.RemoveFirst();
+            _estimatedMemoryUsageBytes -= oldestEntry.EstimatedMemoryBytes;
+        }
+
+        return true;
+    }
+
+    private void ClearEntries(LinkedList<HistoryEntry> entries)
+    {
+        foreach (var entry in entries)
+        {
+            _estimatedMemoryUsageBytes -= entry.EstimatedMemoryBytes;
+        }
+
+        entries.Clear();
     }
 
     private static void ValidateSpan(PixelDocument document, PixelSpan span)
@@ -186,10 +246,13 @@ public sealed class DocumentHistory
         PixelDocument Document,
         IHistoryChange Change,
         long PreviousStateId,
-        long ResultStateId);
+        long ResultStateId,
+        long EstimatedMemoryBytes);
 
     private interface IHistoryChange
     {
+        long EstimatedMemoryBytes { get; }
+
         void Undo(PixelDocument document);
 
         void Redo(PixelDocument document);
@@ -197,6 +260,9 @@ public sealed class DocumentHistory
 
     private sealed record PixelHistoryChange(PixelChange[] Changes) : IHistoryChange
     {
+        public long EstimatedMemoryBytes =>
+            checked((long)Changes.Length * PixelChangePayloadBytes);
+
         public void Undo(PixelDocument document)
         {
             for (var index = Changes.Length - 1; index >= 0; index--)
@@ -220,6 +286,9 @@ public sealed class DocumentHistory
         PixelColor PreviousColor,
         PixelColor Color) : IHistoryChange
     {
+        public long EstimatedMemoryBytes =>
+            checked((long)Spans.Length * PixelSpanPayloadBytes);
+
         public void Undo(PixelDocument document) =>
             document.ApplyPixelSpans(Spans, PreviousColor);
 
