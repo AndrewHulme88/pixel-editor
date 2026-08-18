@@ -24,6 +24,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="PixelEditor.App.Tests" />
     <InternalsVisibleTo Include="PixelEditor.Benchmarks" />
+    <InternalsVisibleTo Include="PixelEditor.Ui.Tests" />
   </ItemGroup>
 
   <ItemGroup>

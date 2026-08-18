@@ -106,6 +106,12 @@ The same lightweight brush is reused at every scale; only the render transform c
 
 The new-document and resize dialogs read the same constants instead of repeating numeric limits in AXAML. PNG loading checks codec metadata against the policy before allocating an Skia decode bitmap or the editor pixel buffer. Oversized imports report `InvalidDataException`, which the existing file workflow presents as an open failure without replacing the active document.
 
+### D016: UI workflows use a separate headless test project
+
+`PixelEditor.Ui.Tests` runs the real Avalonia control tree, compiled AXAML, bindings, window lifecycle, and simulated input through `Avalonia.Headless.XUnit`. Avalonia 12's integration uses xUnit v3, so the headless tests are isolated in their own project while the established core and application unit-test projects remain on xUnit v2.
+
+The UI test project includes the xUnit v3 Visual Studio adapter so the existing `dotnet test pixel-editor.slnx` command continues to run every test project without changing the solution-wide runner. Headless application state uses the default per-test isolation to prevent windows, focus, and dispatcher state leaking between workflows.
+
 ## Performance findings and blockers
 
 ### Oversized PNG import allocation risk
@@ -229,6 +235,23 @@ Status: tooling consideration
 
 Source-generated commands, observable properties, and `InitializeComponent()` can appear missing in the editor when design-time generation is stale. Rebuilding the solution normally resolves this. These are not handwritten methods and should not be duplicated manually.
 
+## UI workflow test coverage
+
+Status: initial high-risk workflows addressed
+
+The headless suite currently covers:
+
+- Opening and closing the real main window with compiled AXAML and bindings.
+- Continuous brush dragging and undoing the completed stroke.
+- Shift-drag preview behaviour and line commit on pointer release.
+- Fill-tool clicks and undoing the fill as one action.
+- Platform-aware undo and redo plus brush-size keyboard shortcuts.
+- Creating a document through the platform New shortcut and modal dialog.
+- New-document dialog values and all unsaved-changes dialog choices.
+- Cancelling a dirty-window close and closing after choosing Don't Save.
+
+Native operating-system file pickers are not emulated by Avalonia's in-process headless window platform. PNG encoding and decoding remain covered at the codec boundary, while Open, Save As, and the Save branch of dirty-close confirmation still require a testable storage/dialog abstraction or a higher-level platform automation test. That work aligns with the separate file-workflow hardening item and was not folded into this milestone.
+
 ## Review findings backlog
 
 Reviewed on 18 August 2026 after the first drawing, history, persistence, and editing milestones. No critical correctness defects were found, and the automated test and Release build baselines passed. The findings below should be handled individually so each change remains measurable and reviewable.
@@ -236,7 +259,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 - **Maximum-size brush lag — addressed:** merged overlapping brush coverage and batched bitmap updates as recorded above.
 - **PNG import limits — addressed:** core construction, dialogs, resizing, and metadata-first PNG import now share one inclusive 1–4096 dimension policy.
 - **Checkerboard rendering cost — addressed:** replaced per-cell drawing with the cached vector tile recorded above.
-- **UI workflow coverage — planned:** core behaviour has good unit coverage, but pointer gestures, platform hotkeys, dialogs, and save/close workflows need headless Avalonia integration tests.
+- **UI workflow coverage — addressed for in-process workflows:** headless tests now cover pointer gestures, platform hotkeys, modal dialogs, new-document flow, and Cancel/Don't Save close behavior. Native picker-backed Open and Save paths remain with file-workflow hardening.
 - **Initial sample document state — planned:** the populated startup sample is treated as clean and can close without a save prompt. Decide whether startup should use a blank document or mark sample content as unsaved.
 - **File workflow hardening — planned:** async file commands have no re-entry guard, and saving writes directly to the target path. Add command gating and an atomic temporary-file replacement strategy before persistence becomes more complex.
 - **History memory budget — monitor:** brush history stores individual pixel changes and has no memory cap. Establish a measurable budget before layers, animation, or larger operations multiply document and history memory.
@@ -261,6 +284,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 14. Optimised maximum-size brush strokes by merging overlapping coverage, batching bitmap updates, and adding a maximum-canvas benchmark.
 15. Replaced per-cell checkerboard rendering with a scale-aware cached vector tile.
 16. Centralised the supported document dimensions and rejected oversized PNG metadata before decode allocation.
+17. Added a separate Avalonia headless suite for pointer, keyboard, dialog, new-document, and dirty-close workflows.
 
 ## Deferred or open decisions
 

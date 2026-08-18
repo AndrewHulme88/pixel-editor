@@ -4,4 +4,5 @@
   <Project Path="src/PixelEditor.Core/PixelEditor.Core.csproj" />
   <Project Path="tests/PixelEditor.App.Tests/PixelEditor.App.Tests.csproj" />
   <Project Path="tests/PixelEditor.Core.Tests/PixelEditor.Core.Tests.csproj" />
+  <Project Path="tests/PixelEditor.Ui.Tests/PixelEditor.Ui.Tests.csproj" />
 </Solution>

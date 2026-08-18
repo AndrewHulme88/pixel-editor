@@ -11,7 +11,9 @@ A desktop pixel art editor built with C# and Avalonia.
 - Basic editor layout
 - Save and load
 
-## Current milestone: fill bucket
+## Current milestone: stability and workflow coverage
+
+Large-canvas brush and checkerboard rendering paths have been optimised, document dimensions are enforced consistently, and a headless Avalonia test suite now exercises real pointer, keyboard, modal-dialog, and dirty-close workflows without opening desktop windows.
 
 Select the Fill tool or press `G`, then click a region to replace its contiguous colour with the selected colour. Fill uses edge-connected pixels, respects exact RGBA values, and commits the entire region as one undoable action.
 
@@ -41,6 +43,7 @@ Use `Ctrl+N`, `Ctrl+O`, `Ctrl+S`, and `Ctrl+Shift+S` for file operations on Wind
 - `src/PixelEditor.Core` — UI-independent editor and document logic
 - `tests/PixelEditor.App.Tests` — unit tests for rendering and application logic
 - `tests/PixelEditor.Core.Tests` — unit tests for the core library
+- `tests/PixelEditor.Ui.Tests` — headless Avalonia tests for complete UI interactions
 
 ## Requirements
 
@@ -52,6 +55,8 @@ Use `Ctrl+N`, `Ctrl+O`, `Ctrl+S`, and `Ctrl+Shift+S` for file operations on Wind
 dotnet build pixel-editor.slnx
 dotnet test pixel-editor.slnx
 ```
+
+The solution test command runs core and application unit tests plus the headless UI workflow suite.
 
 Run the desktop application with:
 
