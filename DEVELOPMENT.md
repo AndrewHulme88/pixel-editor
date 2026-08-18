@@ -138,6 +138,12 @@ The limit is constructor-configurable for tests and future preferences. Active b
 
 `PixelCanvas` remains responsible for translating Avalonia pointer events into editor actions and rendering the result. This first extraction removes one complete state machine from the control while preserving a clear UI boundary. Bitmap synchronisation and drawing-session coordination remain possible later extractions, but they should move only with focused tests rather than through a large class split.
 
+### D021: Canvas editing claims keyboard focus
+
+`PixelCanvas` is focusable and claims pointer focus when a drawing, fill, or pan gesture begins. This moves focus away from editable toolbar controls such as the brush-size selector, preventing their internal text editor from consuming document shortcuts after the user returns to the canvas.
+
+Hovering and other passive pointer movement do not change focus. A headless workflow test selects a brush size, focuses the selector, draws on the canvas, and confirms that the platform undo shortcut reaches document history.
+
 ## Performance findings and blockers
 
 ### Oversized PNG import allocation risk
@@ -315,6 +321,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 19. Serialised asynchronous document workflows to prevent duplicate dialogs, overlapping file operations, and close races.
 20. Added estimated history memory accounting, a 128 MiB default limit, oldest-entry eviction, and a sustained-eviction benchmark.
 21. Extracted fit, zoom, and pan state from `PixelCanvas` into a focused viewport controller with direct unit coverage.
+22. Fixed document shortcuts after brush-size selection by transferring focus to the canvas when editing begins.
 
 ## Deferred or open decisions
 

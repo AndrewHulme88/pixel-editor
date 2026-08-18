@@ -67,6 +67,7 @@ public sealed class PixelCanvas : Control
     public PixelCanvas()
     {
         ClipToBounds = true;
+        Focusable = true;
         RenderOptions.SetBitmapInterpolationMode(this, BitmapInterpolationMode.None);
     }
 
@@ -200,6 +201,7 @@ public sealed class PixelCanvas : Control
 
         if (Document is not null && pointerPoint.Properties.IsMiddleButtonPressed)
         {
+            Focus(NavigationMethod.Pointer);
             BeginPan(e.Pointer, e.GetPosition(this));
             e.Handled = true;
             return;
@@ -211,6 +213,8 @@ public sealed class PixelCanvas : Control
         {
             return;
         }
+
+        Focus(NavigationMethod.Pointer);
 
         if (ActiveTool == EditorTool.Fill)
         {

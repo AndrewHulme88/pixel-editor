@@ -1,7 +1,10 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using pixel_editor.Controls;
+using pixel_editor.Rendering;
 using pixel_editor.ViewModels;
 using pixel_editor.Views;
 using PixelEditor.Core.Documents;
@@ -52,6 +55,40 @@ public sealed class KeyboardWorkflowTests
         PressAndRelease(window, PhysicalKey.Minus, RawInputModifiers.None);
 
         Assert.Equal(1, viewModel.BrushSize);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void DrawingAfterBrushSizeSelection_RestoresDocumentUndoShortcut()
+    {
+        var viewModel = new MainViewModel();
+        var window = CreateWindow(viewModel);
+        var selector = window.FindControl<ComboBox>("BrushSizeSelector")!;
+        var canvas = window.FindControl<PixelCanvas>("EditorCanvas")!;
+        selector.SelectedItem = 4;
+        selector.Focus();
+        var pixel = new PixelCoordinate(8, 8);
+        var layout = CanvasLayout.Calculate(
+            viewModel.Document.Width,
+            viewModel.Document.Height,
+            canvas.Bounds.Size);
+        var localPoint = CanvasPixelGrid.GetPixelBounds(layout, pixel.X, pixel.Y).Center;
+        var windowPoint = canvas.TranslatePoint(localPoint, window)
+            ?? throw new InvalidOperationException("Canvas position could not be mapped to the window.");
+        var commandModifier = OperatingSystem.IsMacOS()
+            ? RawInputModifiers.Meta
+            : RawInputModifiers.Control;
+
+        window.MouseDown(windowPoint, MouseButton.Left, RawInputModifiers.LeftMouseButton);
+        window.MouseUp(windowPoint, MouseButton.Left, RawInputModifiers.None);
+
+        Assert.True(canvas.IsFocused);
+        Assert.NotEqual(PixelColor.Transparent, viewModel.Document.GetPixel(pixel.X, pixel.Y));
+
+        PressAndRelease(window, PhysicalKey.Z, commandModifier);
+
+        Assert.Equal(PixelColor.Transparent, viewModel.Document.GetPixel(pixel.X, pixel.Y));
+        viewModel.MarkDocumentSaved("test.png");
         window.Close();
     }
 
