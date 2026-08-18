@@ -132,6 +132,12 @@ When a new entry exceeds the remaining budget, the oldest undo entries are remov
 
 The limit is constructor-configurable for tests and future preferences. Active brush recording still uses a temporary dictionary before a committed entry is sized; this is short-lived and remains a separate profiling consideration if future tools can produce substantially larger single actions.
 
+### D020: PixelCanvas delegates viewport state
+
+`CanvasViewportController` owns fit mode, explicit pixel scale, pan offset, and active pan gesture state. It composes the existing pure layout and zoom calculations but does not know about pointer capture, documents, drawing tools, or bitmap rendering.
+
+`PixelCanvas` remains responsible for translating Avalonia pointer events into editor actions and rendering the result. This first extraction removes one complete state machine from the control while preserving a clear UI boundary. Bitmap synchronisation and drawing-session coordination remain possible later extractions, but they should move only with focused tests rather than through a large class split.
+
 ## Performance findings and blockers
 
 ### Oversized PNG import allocation risk
@@ -283,7 +289,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 - **Startup document state — addressed:** the editor now starts with a clean transparent 16×16 canvas, while explicitly created new documents remain dirty.
 - **File workflow hardening — in progress:** document operations now share a re-entry guard that also blocks overlapping close requests. Saving still writes directly to the selected target; atomic temporary-file replacement is the next separate fix.
 - **History memory budget — addressed for retained entries:** undo and redo now use a 128 MiB estimated default budget and evict the oldest usable actions first. Temporary active-stroke recording remains measurable but is not retained after commit.
-- **UI class growth — monitor:** `PixelCanvas` and `MainWindow` code-behind are becoming coordination hotspots. Extract focused collaborators when the next features make their responsibilities harder to follow, rather than splitting them solely by line count.
+- **UI class growth — partially addressed:** viewport state and pan/zoom transitions now live in a tested `CanvasViewportController`. `PixelCanvas` still coordinates drawing and bitmap updates, while `MainWindow` coordinates document dialogs and persistence; extract those areas separately when their next changes provide a clear boundary.
 - **Project cleanup — planned:** remove the unused `ViewLocator` scaffold or make it intentional, correct its existing formatting issue, and update the fill benchmark's obsolete single-pixel event subscription.
 
 ## Milestone record
@@ -308,6 +314,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 18. Replaced the generated startup artwork with a clean transparent 16×16 canvas and added startup-state regression coverage.
 19. Serialised asynchronous document workflows to prevent duplicate dialogs, overlapping file operations, and close races.
 20. Added estimated history memory accounting, a 128 MiB default limit, oldest-entry eviction, and a sustained-eviction benchmark.
+21. Extracted fit, zoom, and pan state from `PixelCanvas` into a focused viewport controller with direct unit coverage.
 
 ## Deferred or open decisions
 

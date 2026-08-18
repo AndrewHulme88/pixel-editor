@@ -53,6 +53,7 @@ public sealed class PixelCanvas : Control
 
     private WriteableBitmap? _bitmap;
     private readonly CheckerboardBrushCache _checkerboardBrushCache = new();
+    private readonly CanvasViewportController _viewport = new();
     private PixelDocument? _subscribedDocument;
     private PixelCoordinate? _hoveredPixel;
     private PixelCoordinate? _lastPaintedPixel;
@@ -60,11 +61,7 @@ public sealed class PixelCanvas : Control
     private PixelCoordinate? _straightLineEnd;
     private DocumentHistory? _activeHistory;
     private BitmapUpdateBatch? _bitmapUpdateBatch;
-    private double? _pixelScale;
-    private Vector _panOffset;
-    private Point _lastPanPosition;
     private bool _isDrawing;
-    private bool _isPanning;
     private BrushStrokeMode _strokeMode;
 
     public PixelCanvas()
@@ -121,7 +118,8 @@ public sealed class PixelCanvas : Control
 
     public void ResetView()
     {
-        ResetViewport();
+        _viewport.Reset();
+        UpdateZoomText();
         SetHoveredPixel(null);
         InvalidateVisual();
     }
@@ -151,7 +149,7 @@ public sealed class PixelCanvas : Control
 
         var pointerPosition = e.GetPosition(this);
 
-        if (_isPanning)
+        if (_viewport.IsPanning)
         {
             if (!e.GetCurrentPoint(this).Properties.IsMiddleButtonPressed)
             {
@@ -159,9 +157,7 @@ public sealed class PixelCanvas : Control
                 return;
             }
 
-            var delta = pointerPosition - _lastPanPosition;
-            _panOffset += delta;
-            _lastPanPosition = pointerPosition;
+            _viewport.PanTo(pointerPosition);
             UpdateHoveredPixel(pointerPosition);
             InvalidateVisual();
             e.Handled = true;
@@ -249,7 +245,7 @@ public sealed class PixelCanvas : Control
     {
         base.OnPointerReleased(e);
 
-        if (_isPanning)
+        if (_viewport.IsPanning)
         {
             if (!e.GetCurrentPoint(this).Properties.IsMiddleButtonPressed)
             {
@@ -283,7 +279,7 @@ public sealed class PixelCanvas : Control
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
     {
         CompleteStroke();
-        _isPanning = false;
+        _viewport.EndPan();
         base.OnPointerCaptureLost(e);
     }
 
@@ -291,7 +287,7 @@ public sealed class PixelCanvas : Control
     {
         base.OnPointerWheelChanged(e);
 
-        if (Document is null || _isDrawing || _isPanning || e.Delta.Y == 0)
+        if (Document is null || _isDrawing || _viewport.IsPanning || e.Delta.Y == 0)
         {
             return;
         }
@@ -313,7 +309,8 @@ public sealed class PixelCanvas : Control
         if (change.Property == DocumentProperty)
         {
             CompleteStroke();
-            ResetViewport();
+            _viewport.Reset();
+            UpdateZoomText();
             SubscribeToDocument(Document);
             SetHoveredPixel(null);
             RebuildBitmap();
@@ -537,21 +534,14 @@ public sealed class PixelCanvas : Control
     {
         CompleteStroke();
 
-        if (_pixelScale is null)
-        {
-            var pixelScale = GetCanvasLayout().PixelScale;
-            _pixelScale = pixelScale;
-            ZoomText = $"{pixelScale * 100:0}%";
-        }
-
-        _isPanning = true;
-        _lastPanPosition = pointerPosition;
+        _viewport.BeginPan(pointerPosition, GetCanvasLayout());
+        UpdateZoomText();
         pointer.Capture(this);
     }
 
     private void EndPan(IPointer pointer)
     {
-        _isPanning = false;
+        _viewport.EndPan();
         pointer.Capture(null);
     }
 
@@ -634,14 +624,10 @@ public sealed class PixelCanvas : Control
     {
         var document = Document ?? throw new InvalidOperationException("A document is required for canvas layout.");
 
-        return _pixelScale is { } pixelScale
-            ? CanvasLayout.Calculate(
-                document.Width,
-                document.Height,
-                Bounds.Size,
-                pixelScale,
-                _panOffset)
-            : CanvasLayout.Calculate(document.Width, document.Height, Bounds.Size);
+        return _viewport.CalculateLayout(
+            document.Width,
+            document.Height,
+            Bounds.Size);
     }
 
     private void ZoomAt(Point anchor, bool zoomIn)
@@ -651,28 +637,22 @@ public sealed class PixelCanvas : Control
             return;
         }
 
-        var viewport = CanvasViewport.ZoomAt(
-            GetCanvasLayout(),
+        _viewport.ZoomAt(
             document.Width,
             document.Height,
             Bounds.Size,
             anchor,
             zoomIn);
 
-        _pixelScale = viewport.PixelScale;
-        _panOffset = viewport.PanOffset;
-        ZoomText = $"{viewport.PixelScale * 100:0}%";
+        UpdateZoomText();
         UpdateHoveredPixel(anchor);
         InvalidateVisual();
     }
 
-    private void ResetViewport()
-    {
-        _pixelScale = null;
-        _panOffset = default;
-        _isPanning = false;
-        ZoomText = "Fit";
-    }
+    private void UpdateZoomText() =>
+        ZoomText = _viewport.PixelScale is { } pixelScale
+            ? $"{pixelScale * 100:0}%"
+            : "Fit";
 
     private void SubscribeToDocument(PixelDocument? document)
     {
