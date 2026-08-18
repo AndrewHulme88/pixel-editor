@@ -82,6 +82,38 @@ public sealed class KeyboardWorkflowTests
         window.Close();
     }
 
+    [AvaloniaFact]
+    public async Task DocumentWorkflow_RejectsReentryAndCloseUntilDialogCompletes()
+    {
+        var viewModel = new MainViewModel();
+        var window = CreateWindow(viewModel);
+        var commandModifier = OperatingSystem.IsMacOS()
+            ? RawInputModifiers.Meta
+            : RawInputModifiers.Control;
+
+        PressAndRelease(window, PhysicalKey.N, commandModifier);
+        var firstDialog = Assert.Single(window.OwnedWindows.OfType<NewDocumentDialog>());
+
+        PressAndRelease(window, PhysicalKey.N, commandModifier);
+        window.Close();
+
+        Assert.True(window.IsVisible);
+        Assert.Same(
+            firstDialog,
+            Assert.Single(window.OwnedWindows.OfType<NewDocumentDialog>()));
+
+        UiTestInteraction.ClickButton(firstDialog, "Cancel");
+        await Task.Yield();
+
+        PressAndRelease(window, PhysicalKey.N, commandModifier);
+        var secondDialog = Assert.Single(window.OwnedWindows.OfType<NewDocumentDialog>());
+        Assert.NotSame(firstDialog, secondDialog);
+
+        UiTestInteraction.ClickButton(secondDialog, "Cancel");
+        await Task.Yield();
+        window.Close();
+    }
+
     private static MainWindow CreateWindow(MainViewModel viewModel)
     {
         var window = new MainWindow

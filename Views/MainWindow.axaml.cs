@@ -22,7 +22,7 @@ public partial class MainWindow : Window
 
     private IStorageFile? _currentFile;
     private bool _allowClose;
-    private bool _closeConfirmationIsOpen;
+    private bool _documentWorkflowIsRunning;
 
     public MainWindow()
     {
@@ -47,22 +47,22 @@ public partial class MainWindow : Window
         if (shortcut == EditorShortcut.New)
         {
             e.Handled = true;
-            await NewDocumentAsync();
+            await RunDocumentWorkflowAsync(NewDocumentAsync);
         }
         else if (shortcut == EditorShortcut.Open)
         {
             e.Handled = true;
-            await OpenDocumentAsync();
+            await RunDocumentWorkflowAsync(OpenDocumentAsync);
         }
         else if (shortcut == EditorShortcut.Save)
         {
             e.Handled = true;
-            await SaveDocumentAsync();
+            await RunDocumentWorkflowAsync(SaveDocumentAsync);
         }
         else if (shortcut == EditorShortcut.SaveAs)
         {
             e.Handled = true;
-            await SaveDocumentAsAsync();
+            await RunDocumentWorkflowAsync(SaveDocumentAsAsync);
         }
         else if (shortcut == EditorShortcut.Undo && viewModel.UndoCommand.CanExecute(null))
         {
@@ -87,19 +87,19 @@ public partial class MainWindow : Window
     }
 
     private async void New_OnClick(object? sender, RoutedEventArgs e) =>
-        await NewDocumentAsync();
+        await RunDocumentWorkflowAsync(NewDocumentAsync);
 
     private async void Open_OnClick(object? sender, RoutedEventArgs e) =>
-        await OpenDocumentAsync();
+        await RunDocumentWorkflowAsync(OpenDocumentAsync);
 
     private async void Save_OnClick(object? sender, RoutedEventArgs e) =>
-        await SaveDocumentAsync();
+        await RunDocumentWorkflowAsync(SaveDocumentAsync);
 
     private async void SaveAs_OnClick(object? sender, RoutedEventArgs e) =>
-        await SaveDocumentAsAsync();
+        await RunDocumentWorkflowAsync(SaveDocumentAsAsync);
 
     private async void ResizeCanvas_OnClick(object? sender, RoutedEventArgs e) =>
-        await ResizeCanvasAsync();
+        await RunDocumentWorkflowAsync(ResizeCanvasAsync);
 
     private void ZoomOut_OnClick(object? sender, RoutedEventArgs e) =>
         EditorCanvas.ZoomOut();
@@ -115,6 +115,25 @@ public partial class MainWindow : Window
         if (sender is ComboBox selector && DataContext is MainViewModel viewModel)
         {
             selector.Text = viewModel.BrushSizeText;
+        }
+    }
+
+    private async Task RunDocumentWorkflowAsync(Func<Task> workflow)
+    {
+        if (_documentWorkflowIsRunning)
+        {
+            return;
+        }
+
+        _documentWorkflowIsRunning = true;
+
+        try
+        {
+            await workflow();
+        }
+        finally
+        {
+            _documentWorkflowIsRunning = false;
         }
     }
 
@@ -286,32 +305,32 @@ public partial class MainWindow : Window
 
     private async void OnWindowClosing(object? sender, WindowClosingEventArgs e)
     {
-        if (_allowClose || DataContext is not MainViewModel { IsDirty: true })
+        if (_allowClose)
+        {
+            return;
+        }
+
+        if (_documentWorkflowIsRunning)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        if (DataContext is not MainViewModel { IsDirty: true })
         {
             return;
         }
 
         e.Cancel = true;
 
-        if (_closeConfirmationIsOpen)
-        {
-            return;
-        }
-
-        _closeConfirmationIsOpen = true;
-
-        try
+        await RunDocumentWorkflowAsync(async () =>
         {
             if (await ConfirmCanDiscardChangesAsync())
             {
                 _allowClose = true;
                 Close();
             }
-        }
-        finally
-        {
-            _closeConfirmationIsOpen = false;
-        }
+        });
     }
 
     private static bool IsExpectedFileError(Exception exception) =>

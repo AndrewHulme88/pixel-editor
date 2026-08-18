@@ -118,6 +118,12 @@ The editor opens with a transparent 16×16 document instead of generated sample 
 
 The startup document is intentionally clean, so closing the app before editing does not prompt. Choosing New remains an explicit document-replacement action and continues to create a dirty untitled document that requires confirmation before it is discarded.
 
+### D018: Document workflows are serialised at the window boundary
+
+New, Open, Save, Save As, and Resize share one asynchronous re-entry guard. Menu clicks and keyboard shortcuts enter through the same boundary, preventing overlapping dialogs, file operations, and document replacement while still allowing nested steps within one workflow, such as saving from an unsaved-changes confirmation.
+
+Closing is cancelled while another document workflow is active. Dirty-close confirmation also holds the same guard, so repeated close requests cannot open duplicate confirmation dialogs. The guard is released in a `finally` block so cancellation and errors do not leave file operations permanently disabled.
+
 ## Performance findings and blockers
 
 ### Oversized PNG import allocation risk
@@ -267,7 +273,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 - **Checkerboard rendering cost — addressed:** replaced per-cell drawing with the cached vector tile recorded above.
 - **UI workflow coverage — addressed for in-process workflows:** headless tests now cover pointer gestures, platform hotkeys, modal dialogs, new-document flow, and Cancel/Don't Save close behavior. Native picker-backed Open and Save paths remain with file-workflow hardening.
 - **Startup document state — addressed:** the editor now starts with a clean transparent 16×16 canvas, while explicitly created new documents remain dirty.
-- **File workflow hardening — planned:** async file commands have no re-entry guard, and saving writes directly to the target path. Add command gating and an atomic temporary-file replacement strategy before persistence becomes more complex.
+- **File workflow hardening — in progress:** document operations now share a re-entry guard that also blocks overlapping close requests. Saving still writes directly to the selected target; atomic temporary-file replacement is the next separate fix.
 - **History memory budget — monitor:** brush history stores individual pixel changes and has no memory cap. Establish a measurable budget before layers, animation, or larger operations multiply document and history memory.
 - **UI class growth — monitor:** `PixelCanvas` and `MainWindow` code-behind are becoming coordination hotspots. Extract focused collaborators when the next features make their responsibilities harder to follow, rather than splitting them solely by line count.
 - **Project cleanup — planned:** remove the unused `ViewLocator` scaffold or make it intentional, correct its existing formatting issue, and update the fill benchmark's obsolete single-pixel event subscription.
@@ -292,6 +298,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 16. Centralised the supported document dimensions and rejected oversized PNG metadata before decode allocation.
 17. Added a separate Avalonia headless suite for pointer, keyboard, dialog, new-document, and dirty-close workflows.
 18. Replaced the generated startup artwork with a clean transparent 16×16 canvas and added startup-state regression coverage.
+19. Serialised asynchronous document workflows to prevent duplicate dialogs, overlapping file operations, and close races.
 
 ## Deferred or open decisions
 
