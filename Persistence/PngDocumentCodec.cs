@@ -77,6 +77,7 @@ internal static class PngDocumentCodec
         }
 
         var sourceInfo = codec.Info;
+        ValidateImportedDimensions(sourceInfo.Width, sourceInfo.Height);
         var imageInfo = CreateImageInfo(sourceInfo.Width, sourceInfo.Height);
         using var bitmap = new SKBitmap(imageInfo);
         var decodeResult = codec.GetPixels(imageInfo, bitmap.GetPixels());
@@ -110,12 +111,20 @@ internal static class PngDocumentCodec
 
     private static SKImageInfo CreateImageInfo(int width, int height)
     {
-        if (width <= 0 || height <= 0)
-        {
-            throw new InvalidDataException("PNG dimensions must be greater than zero.");
-        }
-
+        PixelDocumentLimits.ValidateDimensions(width, height);
         _ = checked(width * height * BytesPerPixel);
         return new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+    }
+
+    private static void ValidateImportedDimensions(int width, int height)
+    {
+        if (!PixelDocumentLimits.AreDimensionsSupported(width, height))
+        {
+            throw new InvalidDataException(
+                $"PNG dimensions must each be between " +
+                $"{PixelDocumentLimits.MinimumDimension} and " +
+                $"{PixelDocumentLimits.MaximumDimension} pixels. " +
+                $"Image dimensions are {width} × {height}.");
+        }
     }
 }

@@ -25,8 +25,6 @@
         <NumericUpDown Grid.Row="1"
                        Grid.Column="1"
                        x:Name="WidthInput"
-                       Minimum="1"
-                       Maximum="4096"
                        Value="16"
                        Increment="1"
                        FormatString="0"
@@ -39,8 +37,6 @@
         <NumericUpDown Grid.Row="2"
                        Grid.Column="1"
                        x:Name="HeightInput"
-                       Minimum="1"
-                       Maximum="4096"
                        Value="16"
                        Increment="1"
                        FormatString="0"
@@ -51,7 +47,7 @@
                    Grid.Column="1"
                    x:Name="RangeText"
                    Foreground="#AFAFAF"
-                   Text="1–4096 pixels" />
+                   Text="Canvas size range" />
 
         <TextBlock Grid.Row="4"
                    VerticalAlignment="Center"

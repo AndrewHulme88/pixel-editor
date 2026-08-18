@@ -17,8 +17,10 @@ public sealed class PixelDocumentTests
     [Theory]
     [InlineData(0, 1, "width")]
     [InlineData(-1, 1, "width")]
+    [InlineData(PixelDocumentLimits.MaximumDimension + 1, 1, "width")]
     [InlineData(1, 0, "height")]
     [InlineData(1, -1, "height")]
+    [InlineData(1, PixelDocumentLimits.MaximumDimension + 1, "height")]
     public void Constructor_WithInvalidDimensions_Throws(
         int width,
         int height,
@@ -28,6 +30,17 @@ public sealed class PixelDocumentTests
             () => new PixelDocument(width, height));
 
         Assert.Equal(expectedParameter, exception.ParamName);
+    }
+
+    [Theory]
+    [InlineData(PixelDocumentLimits.MaximumDimension, 1)]
+    [InlineData(1, PixelDocumentLimits.MaximumDimension)]
+    public void Constructor_AtMaximumDimension_Succeeds(int width, int height)
+    {
+        var document = new PixelDocument(width, height);
+
+        Assert.Equal(width, document.Width);
+        Assert.Equal(height, document.Height);
     }
 
     [Theory]

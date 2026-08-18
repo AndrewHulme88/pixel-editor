@@ -87,6 +87,19 @@ public sealed class PixelDocumentResizerTests
             PixelDocumentResizer.Resize(source, 2, 2, (CanvasAnchor)99));
     }
 
+    [Fact]
+    public void Resize_BeyondMaximumDimension_Throws()
+    {
+        var source = new PixelDocument(1, 1);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            PixelDocumentResizer.Resize(
+                source,
+                PixelDocumentLimits.MaximumDimension + 1,
+                1,
+                CanvasAnchor.Center));
+    }
+
     private static PixelDocument CreateTwoByTwoDocument()
     {
         var document = new PixelDocument(2, 2);

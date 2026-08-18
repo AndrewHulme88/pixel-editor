@@ -107,12 +107,53 @@ public sealed class PngDocumentCodecTests
         Assert.Equal("Only PNG images are supported.", exception.Message);
     }
 
+    [Theory]
+    [InlineData(PixelDocumentLimits.MaximumDimension, 1)]
+    [InlineData(1, PixelDocumentLimits.MaximumDimension)]
+    public void Load_AtMaximumDimension_Succeeds(int width, int height)
+    {
+        using var stream = CreatePngStream(width, height);
+
+        var document = PngDocumentCodec.Load(stream);
+
+        Assert.Equal(width, document.Width);
+        Assert.Equal(height, document.Height);
+    }
+
+    [Theory]
+    [InlineData(PixelDocumentLimits.MaximumDimension + 1, 1)]
+    [InlineData(1, PixelDocumentLimits.MaximumDimension + 1)]
+    public void Load_BeyondMaximumDimension_Throws(int width, int height)
+    {
+        using var stream = CreatePngStream(width, height);
+
+        var exception = Assert.Throws<InvalidDataException>(() =>
+            PngDocumentCodec.Load(stream));
+
+        Assert.Contains(
+            $"between {PixelDocumentLimits.MinimumDimension} and " +
+            $"{PixelDocumentLimits.MaximumDimension} pixels",
+            exception.Message);
+        Assert.Contains($"{width} × {height}", exception.Message);
+    }
+
     private static MemoryStream CreatePngStream()
     {
         var document = new PixelDocument(1, 1);
         document.SetPixel(0, 0, new PixelColor(10, 20, 30, 40));
         var stream = new MemoryStream();
         PngDocumentCodec.Save(document, stream);
+        stream.Position = 0;
+        return stream;
+    }
+
+    private static MemoryStream CreatePngStream(int width, int height)
+    {
+        using var bitmap = new SKBitmap(width, height);
+        bitmap.Erase(SKColors.Transparent);
+        using var image = SKImage.FromBitmap(bitmap);
+        using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
+        var stream = new MemoryStream(encoded.ToArray());
         stream.Position = 0;
         return stream;
     }

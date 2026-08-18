@@ -11,15 +11,7 @@ public sealed class PixelDocument
 
     public PixelDocument(int width, int height)
     {
-        if (width <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(width), "Width must be greater than zero.");
-        }
-
-        if (height <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(height), "Height must be greater than zero.");
-        }
+        PixelDocumentLimits.ValidateDimensions(width, height);
 
         Width = width;
         Height = height;

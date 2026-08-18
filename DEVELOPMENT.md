@@ -100,7 +100,28 @@ The checkerboard is represented by a 2×2 vector tile in document coordinates an
 
 The same lightweight brush is reused at every scale; only the render transform changes. A full-canvas checker bitmap was rejected because it would add roughly another 64 MiB at 4096×4096.
 
+### D015: Document dimensions are enforced by the core model
+
+`PixelDocumentLimits` defines the inclusive 1–4096 range for both width and height. `PixelDocument` validates every construction through that policy, which means new documents, resizing, imports, tests, and future document-producing features cannot silently bypass the supported range.
+
+The new-document and resize dialogs read the same constants instead of repeating numeric limits in AXAML. PNG loading checks codec metadata against the policy before allocating an Skia decode bitmap or the editor pixel buffer. Oversized imports report `InvalidDataException`, which the existing file workflow presents as an open failure without replacing the active document.
+
 ## Performance findings and blockers
+
+### Oversized PNG import allocation risk
+
+Status: addressed with metadata-first dimension validation
+
+Observed risk: PNG dimensions were only checked for being positive and fitting the byte-count calculation. A file wider or taller than the editor's advertised 4096-pixel limit could allocate a large Skia decode bitmap and `PixelDocument`, bypassing the new-document and resize controls.
+
+Resolution:
+
+- The core document constructor now rejects dimensions outside the supported range.
+- PNG width and height are read from codec metadata and validated before pixel decode allocation.
+- Dialog limits and range text come from the same core constants.
+- Tests cover the inclusive maximum, one-pixel-over rejection on both axes, resize rejection, and preservation of the current view-model document when validation fails.
+
+This is a per-axis limit rather than a separate total-pixel budget because 4096×4096 is an intentional supported workload. Maximum-size imports still have a meaningful temporary memory cost from encoded data, the Skia decode bitmap, the document, and the display bitmap; that remains part of the large-canvas memory budget below.
 
 ### Transparency checkerboard rendering
 
@@ -213,7 +234,7 @@ Source-generated commands, observable properties, and `InitializeComponent()` ca
 Reviewed on 18 August 2026 after the first drawing, history, persistence, and editing milestones. No critical correctness defects were found, and the automated test and Release build baselines passed. The findings below should be handled individually so each change remains measurable and reviewable.
 
 - **Maximum-size brush lag — addressed:** merged overlapping brush coverage and batched bitmap updates as recorded above.
-- **PNG import limits — planned:** decoded image dimensions are not currently capped at the 4096×4096 editor limit. Document size rules should be centralised and shared by creation, resizing, and import before untrusted or very large files are supported.
+- **PNG import limits — addressed:** core construction, dialogs, resizing, and metadata-first PNG import now share one inclusive 1–4096 dimension policy.
 - **Checkerboard rendering cost — addressed:** replaced per-cell drawing with the cached vector tile recorded above.
 - **UI workflow coverage — planned:** core behaviour has good unit coverage, but pointer gestures, platform hotkeys, dialogs, and save/close workflows need headless Avalonia integration tests.
 - **Initial sample document state — planned:** the populated startup sample is treated as clean and can close without a save prompt. Decide whether startup should use a blank document or mark sample content as unsaved.
@@ -239,6 +260,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 13. Reworked fill, history, and canvas updates around bulk pixel spans after maximum-canvas performance testing exposed per-pixel overhead.
 14. Optimised maximum-size brush strokes by merging overlapping coverage, batching bitmap updates, and adding a maximum-canvas benchmark.
 15. Replaced per-cell checkerboard rendering with a scale-aware cached vector tile.
+16. Centralised the supported document dimensions and rejected oversized PNG metadata before decode allocation.
 
 ## Deferred or open decisions
 

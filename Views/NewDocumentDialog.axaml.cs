@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using PixelEditor.Core.Documents;
 
 namespace pixel_editor.Views;
 
@@ -10,6 +11,12 @@ public partial class NewDocumentDialog : Window
     public NewDocumentDialog()
     {
         InitializeComponent();
+        WidthInput.Minimum = PixelDocumentLimits.MinimumDimension;
+        WidthInput.Maximum = PixelDocumentLimits.MaximumDimension;
+        HeightInput.Minimum = PixelDocumentLimits.MinimumDimension;
+        HeightInput.Maximum = PixelDocumentLimits.MaximumDimension;
+        RangeText.Text =
+            $"{PixelDocumentLimits.MinimumDimension}–{PixelDocumentLimits.MaximumDimension} pixels";
     }
 
     private void Create_OnClick(object? sender, RoutedEventArgs e)

@@ -1,4 +1,3 @@
-using System;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using PixelEditor.Core.Documents;
@@ -28,17 +27,19 @@ public partial class CanvasResizeDialog : Window
     public CanvasResizeDialog()
     {
         InitializeComponent();
+        WidthInput.Minimum = PixelDocumentLimits.MinimumDimension;
+        WidthInput.Maximum = PixelDocumentLimits.MaximumDimension;
+        HeightInput.Minimum = PixelDocumentLimits.MinimumDimension;
+        HeightInput.Maximum = PixelDocumentLimits.MaximumDimension;
+        RangeText.Text =
+            $"{PixelDocumentLimits.MinimumDimension}–{PixelDocumentLimits.MaximumDimension} pixels";
     }
 
     internal CanvasResizeDialog(int width, int height)
         : this()
     {
-        var maximum = Math.Max(4096, Math.Max(width, height));
-        WidthInput.Maximum = maximum;
-        HeightInput.Maximum = maximum;
         WidthInput.Value = width;
         HeightInput.Value = height;
-        RangeText.Text = $"1–{maximum} pixels";
     }
 
     private void Resize_OnClick(object? sender, RoutedEventArgs e)

@@ -135,6 +135,8 @@ public sealed class MainViewModelTests
     [Theory]
     [InlineData(0, 16)]
     [InlineData(16, 0)]
+    [InlineData(PixelDocumentLimits.MaximumDimension + 1, 16)]
+    [InlineData(16, PixelDocumentLimits.MaximumDimension + 1)]
     public void CreateNewDocument_WithInvalidDimensions_LeavesCurrentDocumentUnchanged(
         int width,
         int height)
@@ -186,14 +188,18 @@ public sealed class MainViewModelTests
         Assert.True(viewModel.CanUndo);
     }
 
-    [Fact]
-    public void ResizeDocument_WithInvalidDimensions_LeavesCurrentDocumentUnchanged()
+    [Theory]
+    [InlineData(0, 16)]
+    [InlineData(PixelDocumentLimits.MaximumDimension + 1, 16)]
+    public void ResizeDocument_WithInvalidDimensions_LeavesCurrentDocumentUnchanged(
+        int width,
+        int height)
     {
         var viewModel = new MainViewModel();
         var original = viewModel.Document;
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            viewModel.ResizeDocument(0, 16, CanvasAnchor.Center));
+            viewModel.ResizeDocument(width, height, CanvasAnchor.Center));
         Assert.Same(original, viewModel.Document);
     }
 
