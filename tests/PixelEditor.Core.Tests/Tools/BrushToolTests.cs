@@ -156,6 +156,55 @@ public sealed class BrushToolTests
         Assert.Equal(Color, document.GetPixel(0, 0));
     }
 
+    [Fact]
+    public void DrawLine_AcrossAllEndpointsAndRepresentativeSizes_MatchesSquareStampReference()
+    {
+        const int documentSize = 7;
+
+        for (var brushSize = 1; brushSize <= 5; brushSize++)
+        {
+            for (var startY = 0; startY < documentSize; startY++)
+            {
+                for (var startX = 0; startX < documentSize; startX++)
+                {
+                    for (var endY = 0; endY < documentSize; endY++)
+                    {
+                        for (var endX = 0; endX < documentSize; endX++)
+                        {
+                            var actual = new PixelDocument(documentSize, documentSize);
+                            var expected = new PixelDocument(documentSize, documentSize);
+
+                            BrushTool.DrawLine(
+                                actual,
+                                startX,
+                                startY,
+                                endX,
+                                endY,
+                                Color,
+                                brushSize);
+                            DrawLineWithSquareStamps(
+                                expected,
+                                startX,
+                                startY,
+                                endX,
+                                endY,
+                                Color,
+                                brushSize);
+
+                            for (var y = 0; y < documentSize; y++)
+                            {
+                                for (var x = 0; x < documentSize; x++)
+                                {
+                                    Assert.Equal(expected.GetPixel(x, y), actual.GetPixel(x, y));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(65)]
@@ -165,5 +214,70 @@ public sealed class BrushToolTests
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             BrushTool.DrawLine(document, 2, 2, 2, 2, Color, size));
+    }
+
+    private static void DrawLineWithSquareStamps(
+        PixelDocument document,
+        int startX,
+        int startY,
+        int endX,
+        int endY,
+        PixelColor color,
+        int size)
+    {
+        var x = startX;
+        var y = startY;
+        var horizontalDistance = Math.Abs(endX - startX);
+        var verticalDistance = Math.Abs(endY - startY);
+        var horizontalStep = startX < endX ? 1 : -1;
+        var verticalStep = startY < endY ? 1 : -1;
+        var error = horizontalDistance - verticalDistance;
+
+        while (true)
+        {
+            StampSquare(document, x, y, color, size);
+
+            if (x == endX && y == endY)
+            {
+                return;
+            }
+
+            var doubledError = error * 2;
+
+            if (doubledError > -verticalDistance)
+            {
+                error -= verticalDistance;
+                x += horizontalStep;
+            }
+
+            if (doubledError < horizontalDistance)
+            {
+                error += horizontalDistance;
+                y += verticalStep;
+            }
+        }
+    }
+
+    private static void StampSquare(
+        PixelDocument document,
+        int centreX,
+        int centreY,
+        PixelColor color,
+        int size)
+    {
+        var left = centreX - (size / 2);
+        var top = centreY - (size / 2);
+        var startX = Math.Max(0, left);
+        var startY = Math.Max(0, top);
+        var endX = Math.Min(document.Width, left + size);
+        var endY = Math.Min(document.Height, top + size);
+
+        for (var y = startY; y < endY; y++)
+        {
+            for (var x = startX; x < endX; x++)
+            {
+                document.SetPixel(x, y, color);
+            }
+        }
     }
 }

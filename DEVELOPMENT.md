@@ -40,7 +40,7 @@ Tool comparisons use exact RGBA equality. For example, the fill bucket treats tw
 
 ### D004: Rendering uses an Avalonia WriteableBitmap
 
-The document is displayed through a `WriteableBitmap` with nearest-neighbour interpolation. This preserves hard pixel edges at every zoom level. Individual brush changes update the corresponding bitmap pixel directly. Bulk span changes update multiple rows under one bitmap lock and invalidate the canvas once.
+The document is displayed through a `WriteableBitmap` with nearest-neighbour interpolation. This preserves hard pixel edges at every zoom level. Each brush segment and each bulk span change updates the bitmap under one lock and invalidates the canvas once.
 
 The transparency checkerboard is calculated from document pixel bounds so it remains aligned with the actual pixels at all scales.
 
@@ -88,7 +88,41 @@ xUnit tests verify deterministic behaviour and regressions. BenchmarkDotNet meas
 
 Benchmarks cover brush work, document history, canvas resizing, pixel-buffer creation, PNG persistence, core flood fill, and span-based fill history. The fill history benchmarks include fill recording, undo, and redo up to a 4096×4096 canvas.
 
+### D013: Overlapping brush stamps are merged into row coverage
+
+The visible brush remains a sequence of square stamps along the same integer raster line. Internally, overlapping stamps are merged into one covered interval per affected row before the document is changed. This preserves the existing raster output while avoiding repeated work on pixels covered by several adjacent stamps.
+
+The canvas keeps one bitmap lock for the complete pointer segment and requests one redraw after that segment. Pixel notifications still occur for genuinely changed pixels so existing history behaviour remains unchanged.
+
 ## Performance findings and blockers
+
+### Maximum-size brush and line drawing
+
+Status: addressed with merged brush coverage and batched bitmap updates
+
+Observed behaviour: drawing with a size-64 brush on a 4096×4096 canvas produced noticeable input lag.
+
+Root causes:
+
+- The rasteriser applied a complete 64×64 square at every coordinate along the line, repeatedly checking the large overlap between adjacent stamps.
+- Every changed pixel independently locked the Avalonia bitmap and requested a canvas redraw.
+- Existing brush benchmarks used documents up to 256×256 and did not isolate the maximum supported stroke.
+
+Resolution:
+
+- The rasteriser now collects the combined horizontal coverage for each affected row and changes every covered pixel once.
+- Pointer segments and Shift-drag lines update the bitmap under one lock and invalidate the canvas once.
+- An exhaustive small-document regression test compares the optimised output with the original square-stamp implementation across all endpoint pairs and brush sizes 1–5.
+- A dedicated benchmark measures horizontal and diagonal size-64 strokes across the maximum canvas.
+
+Before-and-after smoke measurement on 18 August 2026:
+
+- Machine: Apple M4 running .NET 10.0.9.
+- Benchmark: one BenchmarkDotNet Dry iteration on a 4096×4096 document with a size-64 brush.
+- Horizontal stroke: approximately 171.7 ms before and 7.4 ms after, about 23 times faster.
+- Diagonal stroke: approximately 176.9 ms before and 12.2 ms after, about 14 times faster.
+
+These are cold-start smoke measurements, not statistically rigorous results, and they measure the core raster and document notification path rather than Avalonia presentation. Managed allocation remains approximately 8 MiB for the horizontal case and 15.75 MiB for the diagonal case because genuinely changed pixels still raise individual notifications. A normal Release benchmark run and manual input testing remain the authoritative checks for perceived drawing responsiveness.
 
 ### Maximum-canvas fill and undo
 
@@ -143,6 +177,20 @@ Status: tooling consideration
 
 Source-generated commands, observable properties, and `InitializeComponent()` can appear missing in the editor when design-time generation is stale. Rebuilding the solution normally resolves this. These are not handwritten methods and should not be duplicated manually.
 
+## Review findings backlog
+
+Reviewed on 18 August 2026 after the first drawing, history, persistence, and editing milestones. No critical correctness defects were found, and the automated test and Release build baselines passed. The findings below should be handled individually so each change remains measurable and reviewable.
+
+- **Maximum-size brush lag — addressed:** merged overlapping brush coverage and batched bitmap updates as recorded above.
+- **PNG import limits — planned:** decoded image dimensions are not currently capped at the 4096×4096 editor limit. Document size rules should be centralised and shared by creation, resizing, and import before untrusted or very large files are supported.
+- **Checkerboard rendering cost — planned:** the transparency background draws rectangles for visible document pixels. Large visible canvases can therefore add substantial render work; cache or tile the checkerboard after the brush fix is manually verified.
+- **UI workflow coverage — planned:** core behaviour has good unit coverage, but pointer gestures, platform hotkeys, dialogs, and save/close workflows need headless Avalonia integration tests.
+- **Initial sample document state — planned:** the populated startup sample is treated as clean and can close without a save prompt. Decide whether startup should use a blank document or mark sample content as unsaved.
+- **File workflow hardening — planned:** async file commands have no re-entry guard, and saving writes directly to the target path. Add command gating and an atomic temporary-file replacement strategy before persistence becomes more complex.
+- **History memory budget — monitor:** brush history stores individual pixel changes and has no memory cap. Establish a measurable budget before layers, animation, or larger operations multiply document and history memory.
+- **UI class growth — monitor:** `PixelCanvas` and `MainWindow` code-behind are becoming coordination hotspots. Extract focused collaborators when the next features make their responsibilities harder to follow, rather than splitting them solely by line count.
+- **Project cleanup — planned:** remove the unused `ViewLocator` scaffold or make it intentional, correct its existing formatting issue, and update the fill benchmark's obsolete single-pixel event subscription.
+
 ## Milestone record
 
 1. Established the Avalonia application, core library, test projects, benchmark project, README, and `.gitignore`.
@@ -158,6 +206,7 @@ Source-generated commands, observable properties, and `InitializeComponent()` ca
 11. Added Shift-drag straight-line drawing with a non-destructive guide.
 12. Added a four-connected fill bucket with the `G` shortcut.
 13. Reworked fill, history, and canvas updates around bulk pixel spans after maximum-canvas performance testing exposed per-pixel overhead.
+14. Optimised maximum-size brush strokes by merging overlapping coverage, batching bitmap updates, and adding a maximum-canvas benchmark.
 
 ## Deferred or open decisions
 

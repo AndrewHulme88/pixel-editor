@@ -60,6 +60,7 @@ public sealed class PixelCanvas : Control
     private PixelCoordinate? _straightLineStart;
     private PixelCoordinate? _straightLineEnd;
     private DocumentHistory? _activeHistory;
+    private BitmapUpdateBatch? _bitmapUpdateBatch;
     private double? _pixelScale;
     private Vector _panOffset;
     private Point _lastPanPosition;
@@ -442,12 +443,10 @@ public sealed class PixelCanvas : Control
         var color = ToolColorResolver.Resolve(ActiveTool, BrushColor);
 
         var start = _lastPaintedPixel ?? coordinate;
-        BrushTool.DrawLine(
+        PaintBrushLine(
             Document,
-            start.X,
-            start.Y,
-            coordinate.X,
-            coordinate.Y,
+            start,
+            coordinate,
             color,
             BrushSize);
 
@@ -475,16 +474,58 @@ public sealed class PixelCanvas : Control
             return;
         }
 
-        BrushTool.DrawLine(
+        PaintBrushLine(
             document,
-            start.X,
-            start.Y,
-            end.X,
-            end.Y,
+            start,
+            end,
             ToolColorResolver.Resolve(ActiveTool, BrushColor),
             BrushSize);
 
         SetHoveredPixel(end);
+    }
+
+    private void PaintBrushLine(
+        PixelDocument document,
+        PixelCoordinate start,
+        PixelCoordinate end,
+        PixelColor color,
+        int brushSize)
+    {
+        if (_bitmap is null)
+        {
+            BrushTool.DrawLine(
+                document,
+                start.X,
+                start.Y,
+                end.X,
+                end.Y,
+                color,
+                brushSize);
+            return;
+        }
+
+        using (var framebuffer = _bitmap.Lock())
+        {
+            _bitmapUpdateBatch = new BitmapUpdateBatch(framebuffer.Address, framebuffer.RowBytes);
+
+            try
+            {
+                BrushTool.DrawLine(
+                    document,
+                    start.X,
+                    start.Y,
+                    end.X,
+                    end.Y,
+                    color,
+                    brushSize);
+            }
+            finally
+            {
+                _bitmapUpdateBatch = null;
+            }
+        }
+
+        InvalidateVisual();
     }
 
     private void FillAt(PixelDocument document, PixelCoordinate coordinate)
@@ -683,6 +724,12 @@ public sealed class PixelCanvas : Control
             return;
         }
 
+        if (_bitmapUpdateBatch is { } batch)
+        {
+            WriteBitmapPixel(batch.Address, batch.RowBytes, e);
+            return;
+        }
+
         using var framebuffer = _bitmap.Lock();
         WriteBitmapPixel(framebuffer.Address, framebuffer.RowBytes, e);
         InvalidateVisual();
@@ -765,4 +812,6 @@ public sealed class PixelCanvas : Control
         _bitmap?.Dispose();
         _bitmap = null;
     }
+
+    private readonly record struct BitmapUpdateBatch(IntPtr Address, int RowBytes);
 }

@@ -1,3 +1,4 @@
+using System.Buffers;
 using PixelEditor.Core.Documents;
 
 namespace PixelEditor.Core.Tools;
@@ -28,45 +29,85 @@ public static class BrushTool
         ValidateCoordinate(endX, document.Width, nameof(endX));
         ValidateCoordinate(endY, document.Height, nameof(endY));
 
-        var x = startX;
-        var y = startY;
-        var horizontalDistance = Math.Abs(endX - startX);
-        var verticalDistance = Math.Abs(endY - startY);
-        var horizontalStep = startX < endX ? 1 : -1;
-        var verticalStep = startY < endY ? 1 : -1;
-        var error = horizontalDistance - verticalDistance;
+        var brushOffset = size / 2;
+        var coverageTop = Math.Max(0, Math.Min(startY, endY) - brushOffset);
+        var coverageBottom = Math.Min(
+            document.Height,
+            Math.Max(startY, endY) - brushOffset + size);
+        var rowCount = coverageBottom - coverageTop;
+        var rowStartsBuffer = ArrayPool<int>.Shared.Rent(rowCount);
+        var rowEndsBuffer = ArrayPool<int>.Shared.Rent(rowCount);
+        var rowStarts = rowStartsBuffer.AsSpan(0, rowCount);
+        var rowEnds = rowEndsBuffer.AsSpan(0, rowCount);
 
-        while (true)
+        rowStarts.Fill(int.MaxValue);
+        rowEnds.Fill(int.MinValue);
+
+        try
         {
-            StampSquare(document, x, y, color, size);
+            var x = startX;
+            var y = startY;
+            var horizontalDistance = Math.Abs(endX - startX);
+            var verticalDistance = Math.Abs(endY - startY);
+            var horizontalStep = startX < endX ? 1 : -1;
+            var verticalStep = startY < endY ? 1 : -1;
+            var error = horizontalDistance - verticalDistance;
 
-            if (x == endX && y == endY)
+            while (true)
             {
-                return;
+                IncludeSquareStamp(
+                    document,
+                    x,
+                    y,
+                    size,
+                    coverageTop,
+                    rowStarts,
+                    rowEnds);
+
+                if (x == endX && y == endY)
+                {
+                    break;
+                }
+
+                var doubledError = error * 2;
+
+                if (doubledError > -verticalDistance)
+                {
+                    error -= verticalDistance;
+                    x += horizontalStep;
+                }
+
+                if (doubledError < horizontalDistance)
+                {
+                    error += horizontalDistance;
+                    y += verticalStep;
+                }
             }
 
-            var doubledError = error * 2;
-
-            if (doubledError > -verticalDistance)
+            // Adjacent stamps overlap, so each affected row can be painted once as a single span.
+            for (var rowIndex = 0; rowIndex < rowCount; rowIndex++)
             {
-                error -= verticalDistance;
-                x += horizontalStep;
+                for (var column = rowStarts[rowIndex]; column < rowEnds[rowIndex]; column++)
+                {
+                    document.SetPixel(column, coverageTop + rowIndex, color);
+                }
             }
-
-            if (doubledError < horizontalDistance)
-            {
-                error += horizontalDistance;
-                y += verticalStep;
-            }
+        }
+        finally
+        {
+            ArrayPool<int>.Shared.Return(rowStartsBuffer);
+            ArrayPool<int>.Shared.Return(rowEndsBuffer);
         }
     }
 
-    private static void StampSquare(
+    private static void IncludeSquareStamp(
         PixelDocument document,
         int centreX,
         int centreY,
-        PixelColor color,
-        int size)
+        int size,
+        int coverageTop,
+        Span<int> rowStarts,
+        Span<int> rowEnds)
     {
         var left = centreX - (size / 2);
         var top = centreY - (size / 2);
@@ -77,10 +118,9 @@ public static class BrushTool
 
         for (var y = startY; y < endY; y++)
         {
-            for (var x = startX; x < endX; x++)
-            {
-                document.SetPixel(x, y, color);
-            }
+            var rowIndex = y - coverageTop;
+            rowStarts[rowIndex] = Math.Min(rowStarts[rowIndex], startX);
+            rowEnds[rowIndex] = Math.Max(rowEnds[rowIndex], endX);
         }
     }
 
