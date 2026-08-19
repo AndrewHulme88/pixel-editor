@@ -31,7 +31,7 @@ The canvas also supports discrete pixel-perfect zoom levels with nearest-neighbo
 
 The editor starts with a clean, transparent 16×16 canvas and can create canvases from 1×1 to 4096×4096 pixels. Explicitly created new documents are untitled and marked unsaved immediately, while replacing a document clears its undo and redo history and previous file association.
 
-The editor can also open, save, and save as PNG through native file dialogs. PNG encoding and decoding use SkiaSharp and preserve exact RGBA values, including partial transparency.
+The editor can also open, save, and save as PNG through native file dialogs. PNG encoding and decoding use SkiaSharp and preserve exact RGBA values, including partial transparency. Local PNG saves use same-directory temporary files and atomic replacement so a failed write does not overwrite the previous file.
 
 Unsaved changes are shown with an asterisk in the window title. Opening another file or closing the editor offers to save, discard, or cancel; undoing back to the last saved state removes the unsaved marker.
 

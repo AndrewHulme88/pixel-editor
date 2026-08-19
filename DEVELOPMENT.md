@@ -150,6 +150,12 @@ The initial Avalonia `ViewLocator` used reflection-based naming conventions but 
 
 If future navigation introduces view-model-first composition, it should use an explicit, testable mapping appropriate to the actual navigation requirements rather than restoring unused scaffold code.
 
+### D023: Local PNG saves use atomic replacement
+
+Local filesystem saves encode into a uniquely named temporary file in the destination directory. The temporary file is flushed to disk before `File.Move` replaces the target, keeping the previous PNG intact if encoding or writing fails and keeping the final rename on the same filesystem. Failed operations make a best effort to remove their temporary file without hiding the original error.
+
+Some Avalonia storage providers expose virtual files without a local path and cannot offer filesystem rename semantics. Those saves encode the complete PNG into memory before opening the provider's output stream. This protects the existing target from codec failures but cannot guarantee atomic replacement if the provider fails while accepting the completed bytes. It also temporarily retains the encoded PNG in memory, which is an accepted fallback cost for the MVP.
+
 ## Performance findings and blockers
 
 ### Oversized PNG import allocation risk
@@ -288,7 +294,7 @@ The headless suite currently covers:
 - New-document dialog values and all unsaved-changes dialog choices.
 - Cancelling a dirty-window close and closing after choosing Don't Save.
 
-Native operating-system file pickers are not emulated by Avalonia's in-process headless window platform. PNG encoding and decoding remain covered at the codec boundary, while Open, Save As, and the Save branch of dirty-close confirmation still require a testable storage/dialog abstraction or a higher-level platform automation test. That work aligns with the separate file-workflow hardening item and was not folded into this milestone.
+Native operating-system file pickers are not emulated by Avalonia's in-process headless window platform. PNG encoding, decoding, atomic local replacement, and failure preservation are covered below the picker boundary. Picker selection, platform permissions, and the Save branch of dirty-close confirmation still require higher-level platform automation; this remains an integration-test gap rather than a persistence-hardening blocker.
 
 ## Review findings backlog
 
@@ -297,9 +303,9 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 - **Maximum-size brush lag — addressed:** merged overlapping brush coverage and batched bitmap updates as recorded above.
 - **PNG import limits — addressed:** core construction, dialogs, resizing, and metadata-first PNG import now share one inclusive 1–4096 dimension policy.
 - **Checkerboard rendering cost — addressed:** replaced per-cell drawing with the cached vector tile recorded above.
-- **UI workflow coverage — addressed for in-process workflows:** headless tests now cover pointer gestures, platform hotkeys, modal dialogs, new-document flow, and Cancel/Don't Save close behavior. Native picker-backed Open and Save paths remain with file-workflow hardening.
+- **UI workflow coverage — addressed for in-process workflows:** headless tests now cover pointer gestures, platform hotkeys, modal dialogs, new-document flow, and Cancel/Don't Save close behavior. Native picker-backed Open and Save paths remain a platform-automation test gap.
 - **Startup document state — addressed:** the editor now starts with a clean transparent 16×16 canvas, while explicitly created new documents remain dirty.
-- **File workflow hardening — in progress:** document operations now share a re-entry guard that also blocks overlapping close requests. Saving still writes directly to the selected target; atomic temporary-file replacement is the next separate fix.
+- **File workflow hardening — addressed:** document operations share a re-entry guard, overlapping close requests are blocked, and local PNG targets use flushed same-directory temporary files followed by atomic replacement. Virtual storage providers use encode-before-open staging because they do not expose portable rename semantics.
 - **History memory budget — addressed for retained entries:** undo and redo now use a 128 MiB estimated default budget and evict the oldest usable actions first. Temporary active-stroke recording remains measurable but is not retained after commit.
 - **UI class growth — partially addressed:** viewport state and pan/zoom transitions now live in a tested `CanvasViewportController`. `PixelCanvas` still coordinates drawing and bitmap updates, while `MainWindow` coordinates document dialogs and persistence; extract those areas separately when their next changes provide a clear boundary.
 - **Project cleanup — addressed:** removed the unused reflection-based `ViewLocator`, its AXAML registration, and the empty `Models` project placeholder. The fill benchmark now subscribes to the bulk span notification emitted by the current fill implementation, and solution formatting validation passes.
@@ -329,6 +335,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 21. Extracted fit, zoom, and pan state from `PixelCanvas` into a focused viewport controller with direct unit coverage.
 22. Fixed document shortcuts after brush-size selection by transferring focus to the canvas when editing begins.
 23. Removed unused Avalonia scaffold code and aligned the fill benchmark with bulk span notifications.
+24. Hardened PNG persistence with atomic local replacement and an encode-before-open fallback for virtual storage providers.
 
 ## Deferred or open decisions
 

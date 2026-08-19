@@ -264,9 +264,7 @@ public partial class MainWindow : Window
 
         try
         {
-            await using var output = await file.OpenWriteAsync();
-            PngDocumentCodec.Save(viewModel.Document, output);
-            await output.FlushAsync();
+            await PngDocumentStorage.SaveAsync(viewModel.Document, file);
 
             _currentFile = file;
             viewModel.MarkDocumentSaved(file.Name);
