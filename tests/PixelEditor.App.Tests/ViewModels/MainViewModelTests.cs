@@ -37,6 +37,7 @@ public sealed class MainViewModelTests
         Assert.True(viewModel.IsBrushSelected);
         Assert.False(viewModel.IsEraserSelected);
         Assert.False(viewModel.IsFillSelected);
+        Assert.False(viewModel.IsEyedropperSelected);
         Assert.Equal(1, viewModel.BrushSize);
         Assert.False(viewModel.IsDirty);
         Assert.Equal("Untitled - Pixel Editor", viewModel.WindowTitle);
@@ -80,6 +81,20 @@ public sealed class MainViewModelTests
         Assert.False(viewModel.IsBrushSelected);
         Assert.False(viewModel.IsEraserSelected);
         Assert.True(viewModel.IsFillSelected);
+    }
+
+    [Fact]
+    public void SelectEyedropperCommand_SelectsEyedropper()
+    {
+        var viewModel = new MainViewModel();
+
+        viewModel.SelectEyedropperCommand.Execute(null);
+
+        Assert.Equal(EditorTool.Eyedropper, viewModel.ActiveTool);
+        Assert.False(viewModel.IsBrushSelected);
+        Assert.False(viewModel.IsEraserSelected);
+        Assert.False(viewModel.IsFillSelected);
+        Assert.True(viewModel.IsEyedropperSelected);
     }
 
     [Fact]

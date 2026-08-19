@@ -92,6 +92,37 @@ public sealed class CanvasDrawingWorkflowTests
         window.Close();
     }
 
+    [AvaloniaTheory]
+    [InlineData(12, 34, 56, 255)]
+    [InlineData(78, 90, 123, 127)]
+    [InlineData(0, 0, 0, 0)]
+    public void EyedropperClick_SamplesExactColorWithoutHistory(
+        int red,
+        int green,
+        int blue,
+        int alpha)
+    {
+        var (window, canvas, document, history) = ShowCanvas(EditorTool.Eyedropper);
+        var sampledColor = new PixelColor(
+            (byte)red,
+            (byte)green,
+            (byte)blue,
+            (byte)alpha);
+        document.SetPixel(1, 2, sampledColor);
+        var originalStateId = history.CurrentStateId;
+        var point = GetWindowPixelCentre(window, canvas, document, 1, 2);
+
+        window.MouseDown(point, MouseButton.Left, RawInputModifiers.LeftMouseButton);
+        window.MouseUp(point, MouseButton.Left, RawInputModifiers.None);
+
+        Assert.Equal(sampledColor, canvas.BrushColor);
+        Assert.Equal(sampledColor, document.GetPixel(1, 2));
+        Assert.Equal(originalStateId, history.CurrentStateId);
+        Assert.False(history.CanUndo);
+        Assert.False(history.CanRedo);
+        window.Close();
+    }
+
     private static (Window, PixelCanvas, PixelDocument, DocumentHistory) ShowCanvas(
         EditorTool tool)
     {

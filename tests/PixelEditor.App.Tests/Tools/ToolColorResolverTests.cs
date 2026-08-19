@@ -34,6 +34,13 @@ public sealed class ToolColorResolverTests
     }
 
     [Fact]
+    public void Resolve_WithEyedropper_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ToolColorResolver.Resolve(EditorTool.Eyedropper, BrushColor));
+    }
+
+    [Fact]
     public void Resolve_WithUnsupportedTool_Throws()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>

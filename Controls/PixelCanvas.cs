@@ -223,6 +223,13 @@ public sealed class PixelCanvas : Control
             return;
         }
 
+        if (ActiveTool == EditorTool.Eyedropper)
+        {
+            SampleColorAt(document, coordinate);
+            e.Handled = true;
+            return;
+        }
+
         _activeHistory = History;
         _activeHistory?.BeginChangeSet(document);
         _isDrawing = true;
@@ -319,7 +326,7 @@ public sealed class PixelCanvas : Control
             SetHoveredPixel(null);
             RebuildBitmap();
         }
-        else if (change.Property == BrushSizeProperty)
+        else if (change.Property == BrushSizeProperty || change.Property == ActiveToolProperty)
         {
             InvalidateVisual();
         }
@@ -528,6 +535,14 @@ public sealed class PixelCanvas : Control
         SetHoveredPixel(coordinate);
     }
 
+    private void SampleColorAt(PixelDocument document, PixelCoordinate coordinate)
+    {
+        SetCurrentValue(
+            BrushColorProperty,
+            document.GetPixel(coordinate.X, coordinate.Y));
+        SetHoveredPixel(coordinate);
+    }
+
     private void EndBrushStroke(IPointer pointer)
     {
         CompleteStroke();
@@ -594,7 +609,9 @@ public sealed class PixelCanvas : Control
                 layout,
                 pixel.X,
                 pixel.Y,
-                ActiveTool == EditorTool.Fill ? BrushTool.MinimumSize : BrushSize,
+                ActiveTool is EditorTool.Fill or EditorTool.Eyedropper
+                    ? BrushTool.MinimumSize
+                    : BrushSize,
                 Document!.Width,
                 Document.Height));
     }

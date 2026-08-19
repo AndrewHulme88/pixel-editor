@@ -4,5 +4,6 @@ public enum EditorTool
 {
     Brush,
     Eraser,
-    Fill
+    Fill,
+    Eyedropper
 }

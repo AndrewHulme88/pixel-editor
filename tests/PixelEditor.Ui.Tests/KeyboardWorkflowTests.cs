@@ -8,6 +8,7 @@ using pixel_editor.Rendering;
 using pixel_editor.ViewModels;
 using pixel_editor.Views;
 using PixelEditor.Core.Documents;
+using PixelEditor.Core.Tools;
 using Xunit;
 
 namespace PixelEditor.Ui.Tests;
@@ -55,6 +56,33 @@ public sealed class KeyboardWorkflowTests
         PressAndRelease(window, PhysicalKey.Minus, RawInputModifiers.None);
 
         Assert.Equal(1, viewModel.BrushSize);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void EyedropperShortcutAndClick_UpdateSelectedColorWithoutEditing()
+    {
+        var viewModel = new MainViewModel();
+        var sampledColor = new PixelColor(15, 80, 145, 96);
+        var pixel = new PixelCoordinate(8, 8);
+        viewModel.Document.SetPixel(pixel.X, pixel.Y, sampledColor);
+        var historyStateId = viewModel.History.CurrentStateId;
+        var window = CreateWindow(viewModel);
+        var canvas = window.FindControl<PixelCanvas>("EditorCanvas")!;
+        var point = GetWindowPixelCentre(window, canvas, viewModel.Document, pixel);
+
+        PressAndRelease(window, PhysicalKey.I, RawInputModifiers.None);
+
+        Assert.Equal(EditorTool.Eyedropper, viewModel.ActiveTool);
+
+        window.MouseDown(point, MouseButton.Left, RawInputModifiers.LeftMouseButton);
+        window.MouseUp(point, MouseButton.Left, RawInputModifiers.None);
+
+        Assert.Equal(sampledColor, viewModel.BrushColor);
+        Assert.Equal(sampledColor, viewModel.Document.GetPixel(pixel.X, pixel.Y));
+        Assert.Equal(historyStateId, viewModel.History.CurrentStateId);
+        Assert.False(viewModel.IsDirty);
+        Assert.False(viewModel.CanUndo);
         window.Close();
     }
 
@@ -159,6 +187,21 @@ public sealed class KeyboardWorkflowTests
         };
         window.Show();
         return window;
+    }
+
+    private static Point GetWindowPixelCentre(
+        MainWindow window,
+        PixelCanvas canvas,
+        PixelDocument document,
+        PixelCoordinate pixel)
+    {
+        var layout = CanvasLayout.Calculate(
+            document.Width,
+            document.Height,
+            canvas.Bounds.Size);
+        var localPoint = CanvasPixelGrid.GetPixelBounds(layout, pixel.X, pixel.Y).Center;
+        return canvas.TranslatePoint(localPoint, window)
+            ?? throw new InvalidOperationException("Canvas position could not be mapped to the window.");
     }
 
     private static void PressAndRelease(

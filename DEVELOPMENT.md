@@ -72,7 +72,7 @@ The algorithm records horizontal spans as it discovers the region. A full 4096×
 
 ### D009: Keyboard shortcuts follow platform conventions
 
-Windows uses Ctrl-based file and history shortcuts; macOS uses Cmd-based shortcuts. Redo supports the common alternatives on both platforms. Tool hotkeys are `B` for brush, `E` for eraser, and `G` for fill. `-` and `=` decrease and increase brush size.
+Windows uses Ctrl-based file and history shortcuts; macOS uses Cmd-based shortcuts. Redo supports the common alternatives on both platforms. Tool hotkeys are `B` for brush, `E` for eraser, `G` for fill, and `I` for eyedropper. `-` and `=` decrease and increase brush size.
 
 ### D010: View navigation uses discrete pixel-perfect zoom
 
@@ -155,6 +155,12 @@ If future navigation introduces view-model-first composition, it should use an e
 Local filesystem saves encode into a uniquely named temporary file in the destination directory. The temporary file is flushed to disk before `File.Move` replaces the target, keeping the previous PNG intact if encoding or writing fails and keeping the final rename on the same filesystem. Failed operations make a best effort to remove their temporary file without hiding the original error.
 
 Some Avalonia storage providers expose virtual files without a local path and cannot offer filesystem rename semantics. Those saves encode the complete PNG into memory before opening the provider's output stream. This protects the existing target from codec failures but cannot guarantee atomic replacement if the provider fails while accepting the completed bytes. It also temporarily retains the encoded PNG in memory, which is an accepted fallback cost for the MVP.
+
+### D024: Eyedropper sampling remains outside document editing
+
+The eyedropper reads one `PixelColor` directly from the document and updates the shared selected colour through the canvas's two-way binding. It does not start a drawing session, mutate pixels, create history, or affect dirty-state tracking. Exact alpha is retained, including partial and full transparency.
+
+Sampling is constant-time work consisting of one coordinate mapping and one array lookup, so a dedicated benchmark would not provide useful information at this stage. Headless tests cover exact opaque, partially transparent, and fully transparent values, plus the complete `I` shortcut and pointer workflow.
 
 ## Performance findings and blockers
 
@@ -289,6 +295,7 @@ The headless suite currently covers:
 - Continuous brush dragging and undoing the completed stroke.
 - Shift-drag preview behaviour and line commit on pointer release.
 - Fill-tool clicks and undoing the fill as one action.
+- Eyedropper clicks across alpha values and the `I` shortcut-to-sample workflow.
 - Platform-aware undo and redo plus brush-size keyboard shortcuts.
 - Creating a document through the platform New shortcut and modal dialog.
 - New-document dialog values and all unsaved-changes dialog choices.
@@ -336,6 +343,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 22. Fixed document shortcuts after brush-size selection by transferring focus to the canvas when editing begins.
 23. Removed unused Avalonia scaffold code and aligned the fill benchmark with bulk span notifications.
 24. Hardened PNG persistence with atomic local replacement and an encode-before-open fallback for virtual storage providers.
+25. Added exact RGBA eyedropper sampling with the `I` shortcut and non-editing workflow coverage.
 
 ## Deferred or open decisions
 

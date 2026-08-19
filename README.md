@@ -5,15 +5,17 @@ A desktop pixel art editor built with C# and Avalonia.
 ## MVP scope
 
 - Pixel canvas
-- Brush, eraser, and fill tools
+- Brush, eraser, fill, and eyedropper tools
 - Colour picker
 - Undo and redo
 - Basic editor layout
 - Save and load
 
-## Current milestone: stability and workflow coverage
+## Current milestone: Phase 2 editing essentials
 
-Large-canvas brush and checkerboard rendering paths have been optimised, document dimensions are enforced consistently, and a headless Avalonia test suite now exercises real pointer, keyboard, modal-dialog, and dirty-close workflows without opening desktop windows.
+The first Phase 2 editing tool is complete. Select the Eyedropper or press `I`, then click any canvas pixel to copy its exact RGBA value into the colour picker. Sampling does not edit the document, create an undo entry, or mark the document unsaved.
+
+Large-canvas brush and checkerboard rendering paths have been optimised, document dimensions are enforced consistently, and a headless Avalonia test suite exercises real pointer, keyboard, modal-dialog, and dirty-close workflows without opening desktop windows.
 
 Select the Fill tool or press `G`, then click a region to replace its contiguous colour with the selected colour. Fill uses edge-connected pixels, respects exact RGBA values, and commits the entire region as one undoable action.
 
@@ -41,6 +43,7 @@ Use `Ctrl+N`, `Ctrl+O`, `Ctrl+S`, and `Ctrl+Shift+S` for file operations on Wind
 
 - `pixel-editor.csproj` — Avalonia desktop application
 - `benchmarks/PixelEditor.Benchmarks` — repeatable performance benchmarks
+- [`PLAN.md`](PLAN.md) — upcoming milestones, scope, and engineering considerations
 - [`DEVELOPMENT.md`](DEVELOPMENT.md) — living record of technical decisions, trade-offs, and performance findings
 - `src/PixelEditor.Core` — UI-independent editor and document logic
 - `tests/PixelEditor.App.Tests` — unit tests for rendering and application logic
