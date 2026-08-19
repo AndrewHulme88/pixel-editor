@@ -19,8 +19,7 @@ Work through these milestones individually. Each milestone should include focuse
 - [x] Update the selected colour without changing document pixels, history, or dirty state.
 - [x] Test opaque, partially transparent, and fully transparent pixels.
 - [x] Add a headless pointer and shortcut workflow test.
-
-Possible follow-up: temporarily activate the eyedropper while holding `Alt` without changing the permanently selected tool.
+- [x] Temporarily sample with `Alt` on Windows/Linux or `Option` on macOS without changing the selected tool.
 
 ### 2. Rectangle and ellipse tools
 

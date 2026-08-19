@@ -123,6 +123,32 @@ public sealed class CanvasDrawingWorkflowTests
         window.Close();
     }
 
+    [AvaloniaFact]
+    public void AltClick_TemporarilySamplesThenReturnsToSelectedTool()
+    {
+        var (window, canvas, document, history) = ShowCanvas(EditorTool.Brush);
+        var sampledColor = new PixelColor(210, 120, 30, 140);
+        document.SetPixel(1, 2, sampledColor);
+        var samplePoint = GetWindowPixelCentre(window, canvas, document, 1, 2);
+        var drawPoint = GetWindowPixelCentre(window, canvas, document, 3, 0);
+        var samplingModifiers = RawInputModifiers.LeftMouseButton | RawInputModifiers.Alt;
+
+        window.MouseDown(samplePoint, MouseButton.Left, samplingModifiers);
+        window.MouseUp(samplePoint, MouseButton.Left, RawInputModifiers.Alt);
+
+        Assert.Equal(sampledColor, canvas.BrushColor);
+        Assert.Equal(EditorTool.Brush, canvas.ActiveTool);
+        Assert.False(history.CanUndo);
+
+        window.MouseDown(drawPoint, MouseButton.Left, RawInputModifiers.LeftMouseButton);
+        window.MouseUp(drawPoint, MouseButton.Left, RawInputModifiers.None);
+
+        Assert.Equal(sampledColor, document.GetPixel(3, 0));
+        Assert.Equal(EditorTool.Brush, canvas.ActiveTool);
+        Assert.True(history.CanUndo);
+        window.Close();
+    }
+
     private static (Window, PixelCanvas, PixelDocument, DocumentHistory) ShowCanvas(
         EditorTool tool)
     {

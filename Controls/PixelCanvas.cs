@@ -216,16 +216,17 @@ public sealed class PixelCanvas : Control
 
         Focus(NavigationMethod.Pointer);
 
-        if (ActiveTool == EditorTool.Fill)
+        if (ActiveTool == EditorTool.Eyedropper ||
+            (e.KeyModifiers & KeyModifiers.Alt) != 0)
         {
-            FillAt(document, coordinate);
+            SampleColorAt(document, coordinate);
             e.Handled = true;
             return;
         }
 
-        if (ActiveTool == EditorTool.Eyedropper)
+        if (ActiveTool == EditorTool.Fill)
         {
-            SampleColorAt(document, coordinate);
+            FillAt(document, coordinate);
             e.Handled = true;
             return;
         }

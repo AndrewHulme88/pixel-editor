@@ -160,7 +160,9 @@ Some Avalonia storage providers expose virtual files without a local path and ca
 
 The eyedropper reads one `PixelColor` directly from the document and updates the shared selected colour through the canvas's two-way binding. It does not start a drawing session, mutate pixels, create history, or affect dirty-state tracking. Exact alpha is retained, including partial and full transparency.
 
-Sampling is constant-time work consisting of one coordinate mapping and one array lookup, so a dedicated benchmark would not provide useful information at this stage. Headless tests cover exact opaque, partially transparent, and fully transparent values, plus the complete `I` shortcut and pointer workflow.
+Holding `Alt` on Windows/Linux or `Option` on macOS gives a pointer click temporary eyedropper behavior. Avalonia represents both physical modifiers as `KeyModifiers.Alt`. The modifier takes precedence over the selected drawing or fill tool for that click, while `ActiveTool` remains unchanged so the original tool resumes as soon as the modifier is released.
+
+Sampling is constant-time work consisting of one coordinate mapping and one array lookup, so a dedicated benchmark would not provide useful information at this stage. Headless tests cover exact opaque, partially transparent, and fully transparent values, the complete `I` shortcut and pointer workflow, and temporary sampling followed by drawing with the unchanged tool.
 
 ## Performance findings and blockers
 

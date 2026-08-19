@@ -13,7 +13,7 @@ A desktop pixel art editor built with C# and Avalonia.
 
 ## Current milestone: Phase 2 editing essentials
 
-The first Phase 2 editing tool is complete. Select the Eyedropper or press `I`, then click any canvas pixel to copy its exact RGBA value into the colour picker. Sampling does not edit the document, create an undo entry, or mark the document unsaved.
+The first Phase 2 editing tool is complete. Select the Eyedropper or press `I`, then click any canvas pixel to copy its exact RGBA value into the colour picker. Hold `Alt` on Windows/Linux or `Option` on macOS while clicking to sample temporarily without changing the selected tool. Sampling does not edit the document, create an undo entry, or mark the document unsaved.
 
 Large-canvas brush and checkerboard rendering paths have been optimised, document dimensions are enforced consistently, and a headless Avalonia test suite exercises real pointer, keyboard, modal-dialog, and dirty-close workflows without opening desktop windows.
 
