@@ -76,6 +76,8 @@ public partial class MainViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(IsEraserSelected))]
     [NotifyPropertyChangedFor(nameof(IsFillSelected))]
     [NotifyPropertyChangedFor(nameof(IsEyedropperSelected))]
+    [NotifyPropertyChangedFor(nameof(IsRectangleSelected))]
+    [NotifyPropertyChangedFor(nameof(IsEllipseSelected))]
     public partial EditorTool ActiveTool { get; set; } = EditorTool.Brush;
 
     public bool IsBrushSelected => ActiveTool == EditorTool.Brush;
@@ -85,6 +87,10 @@ public partial class MainViewModel : ViewModelBase
     public bool IsFillSelected => ActiveTool == EditorTool.Fill;
 
     public bool IsEyedropperSelected => ActiveTool == EditorTool.Eyedropper;
+
+    public bool IsRectangleSelected => ActiveTool == EditorTool.Rectangle;
+
+    public bool IsEllipseSelected => ActiveTool == EditorTool.Ellipse;
 
     public bool CanUndo => History.CanUndo;
 
@@ -103,6 +109,12 @@ public partial class MainViewModel : ViewModelBase
 
     [RelayCommand]
     private void SelectEyedropper() => ActiveTool = EditorTool.Eyedropper;
+
+    [RelayCommand]
+    private void SelectRectangle() => ActiveTool = EditorTool.Rectangle;
+
+    [RelayCommand]
+    private void SelectEllipse() => ActiveTool = EditorTool.Ellipse;
 
     [RelayCommand]
     private void DecreaseBrushSize() => BrushSize--;

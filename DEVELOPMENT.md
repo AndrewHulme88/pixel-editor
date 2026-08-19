@@ -164,6 +164,14 @@ Holding `Alt` on Windows/Linux or `Option` on macOS gives a pointer click tempor
 
 Sampling is constant-time work consisting of one coordinate mapping and one array lookup, so a dedicated benchmark would not provide useful information at this stage. Headless tests cover exact opaque, partially transparent, and fully transparent values, the complete `I` shortcut and pointer workflow, and temporary sampling followed by drawing with the unchanged tool.
 
+### D025: Outline shapes use sparse row coverage and deferred commit
+
+Rectangle and ellipse rasterisation lives in `PixelEditor.Core` and applies the same square brush footprint as freehand drawing. Perimeter stamps are merged into sparse intervals for each affected row before painting, preserving separated left and right ellipse edges without filling the interior or repeatedly writing overlapping thick-brush pixels. Ellipse arithmetic uses 64-bit intermediates so maximum 4096×4096 bounds cannot overflow.
+
+`ShapeGesture` owns the active tool and start/end coordinates outside `PixelCanvas`. Pointer movement updates only this preview state; document mutation and history recording begin on release. The completed outline is painted while the canvas bitmap is locked once and is committed as one undo action. Losing pointer capture cancels an uncommitted preview.
+
+The preview is rendered as a vector overlay and never changes document pixels. Rectangle and Ellipse currently draw outlines only; filled variants remain separate follow-up work. Focused benchmarks cover both maximum-canvas outlines at brush sizes 1 and 64.
+
 ## Performance findings and blockers
 
 ### Oversized PNG import allocation risk
@@ -298,6 +306,7 @@ The headless suite currently covers:
 - Shift-drag preview behaviour and line commit on pointer release.
 - Fill-tool clicks and undoing the fill as one action.
 - Eyedropper clicks across alpha values and the `I` shortcut-to-sample workflow.
+- Non-destructive rectangle and ellipse previews, click-only stamps, commit, and undo.
 - Platform-aware undo and redo plus brush-size keyboard shortcuts.
 - Creating a document through the platform New shortcut and modal dialog.
 - New-document dialog values and all unsaved-changes dialog choices.
@@ -346,6 +355,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 23. Removed unused Avalonia scaffold code and aligned the fill benchmark with bulk span notifications.
 24. Hardened PNG persistence with atomic local replacement and an encode-before-open fallback for virtual storage providers.
 25. Added exact RGBA eyedropper sampling with the `I` shortcut and non-editing workflow coverage.
+26. Added outline rectangle and ellipse tools with deferred previews, sparse raster coverage, one-action history, and maximum-canvas benchmarks.
 
 ## Deferred or open decisions
 

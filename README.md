@@ -5,7 +5,7 @@ A desktop pixel art editor built with C# and Avalonia.
 ## MVP scope
 
 - Pixel canvas
-- Brush, eraser, fill, and eyedropper tools
+- Brush, eraser, fill, eyedropper, rectangle, and ellipse tools
 - Colour picker
 - Undo and redo
 - Basic editor layout
@@ -14,6 +14,8 @@ A desktop pixel art editor built with C# and Avalonia.
 ## Current milestone: Phase 2 editing essentials
 
 The first Phase 2 editing tool is complete. Select the Eyedropper or press `I`, then click any canvas pixel to copy its exact RGBA value into the colour picker. Hold `Alt` on Windows/Linux or `Option` on macOS while clicking to sample temporarily without changing the selected tool. Sampling does not edit the document, create an undo entry, or mark the document unsaved.
+
+Rectangle and Ellipse draw outlines using the selected colour and brush size. Drag to preview a shape without changing any pixels, then release to commit it as one undoable action. Clicking without dragging creates one brush-sized stamp. Filled shape modes remain intentionally deferred.
 
 Large-canvas brush and checkerboard rendering paths have been optimised, document dimensions are enforced consistently, and a headless Avalonia test suite exercises real pointer, keyboard, modal-dialog, and dirty-close workflows without opening desktop windows.
 
@@ -71,7 +73,7 @@ dotnet run --project pixel-editor.csproj
 
 ## Performance testing
 
-Performance benchmarks cover multiple brush sizes, flood fill, undo history, canvas resizing, pixel-buffer conversion, and PNG persistence. Run them in Release mode:
+Performance benchmarks cover multiple brush sizes, maximum-canvas outline shapes, flood fill, undo history, canvas resizing, pixel-buffer conversion, and PNG persistence. Run them in Release mode:
 
 ```sh
 dotnet run -c Release --project benchmarks/PixelEditor.Benchmarks -- --filter "*"

@@ -4,7 +4,7 @@ This file tracks upcoming development. Completed technical decisions, trade-offs
 
 ## Current status
 
-The initial MVP and stability pass are complete. Phase 2 is underway, beginning with an eyedropper that samples exact canvas colours without editing the document.
+The initial MVP and stability pass are complete. Phase 2 now includes exact colour sampling plus outline rectangle and ellipse drawing.
 
 The next phase will improve everyday editing while retaining the current single-canvas document model.
 
@@ -23,13 +23,13 @@ Work through these milestones individually. Each milestone should include focuse
 
 ### 2. Rectangle and ellipse tools
 
-- [ ] Add outline rectangle and ellipse tools.
-- [ ] Use the selected colour and brush size.
-- [ ] Show a non-destructive guide while dragging.
-- [ ] Commit each completed shape as one undoable action.
-- [ ] Clip shapes safely at document boundaries.
-- [ ] Test click-only, reverse-direction, edge, and maximum-size gestures.
-- [ ] Benchmark large outline shapes if profiling shows meaningful cost.
+- [x] Add outline rectangle and ellipse tools.
+- [x] Use the selected colour and brush size.
+- [x] Show a non-destructive guide while dragging.
+- [x] Commit each completed shape as one undoable action.
+- [x] Clip shapes safely at document boundaries.
+- [x] Test click-only, reverse-direction, edge, and maximum-size gestures.
+- [x] Add focused maximum-canvas benchmarks for both outline shapes.
 
 Filled rectangle and ellipse modes should be separate follow-up work so the first shape milestone remains small.
 

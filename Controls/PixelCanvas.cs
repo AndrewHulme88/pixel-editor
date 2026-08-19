@@ -54,6 +54,7 @@ public sealed class PixelCanvas : Control
     private WriteableBitmap? _bitmap;
     private readonly CheckerboardBrushCache _checkerboardBrushCache = new();
     private readonly CanvasViewportController _viewport = new();
+    private readonly ShapeGesture _shapeGesture = new();
     private PixelDocument? _subscribedDocument;
     private PixelCoordinate? _hoveredPixel;
     private PixelCoordinate? _lastPaintedPixel;
@@ -140,6 +141,7 @@ public sealed class PixelCanvas : Control
         var source = new Rect(0, 0, Document.Width, Document.Height);
         context.DrawImage(_bitmap, source, layout.Destination);
         context.DrawRectangle(null, CanvasBorder, layout.Destination);
+        DrawShapeGuide(context, layout);
         DrawStraightLineGuide(context, layout);
         DrawHoveredPixel(context, layout);
     }
@@ -174,13 +176,24 @@ public sealed class PixelCanvas : Control
 
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
-            if (_strokeMode == BrushStrokeMode.StraightLine)
+            if (_shapeGesture.IsActive)
+            {
+                UpdateShapeEnd(pointerPosition);
+                PaintShape();
+            }
+            else if (_strokeMode == BrushStrokeMode.StraightLine)
             {
                 UpdateStraightLineEnd(pointerPosition);
                 PaintStraightLine();
             }
 
             EndBrushStroke(e.Pointer);
+            return;
+        }
+
+        if (_shapeGesture.IsActive)
+        {
+            UpdateShapeEnd(pointerPosition);
             return;
         }
 
@@ -231,6 +244,13 @@ public sealed class PixelCanvas : Control
             return;
         }
 
+        if (ActiveTool is EditorTool.Rectangle or EditorTool.Ellipse)
+        {
+            BeginShape(e.Pointer, coordinate);
+            e.Handled = true;
+            return;
+        }
+
         _activeHistory = History;
         _activeHistory?.BeginChangeSet(document);
         _isDrawing = true;
@@ -274,7 +294,12 @@ public sealed class PixelCanvas : Control
             return;
         }
 
-        if (_strokeMode == BrushStrokeMode.StraightLine)
+        if (_shapeGesture.IsActive)
+        {
+            UpdateShapeEnd(e.GetPosition(this));
+            PaintShape();
+        }
+        else if (_strokeMode == BrushStrokeMode.StraightLine)
         {
             UpdateStraightLineEnd(e.GetPosition(this));
             PaintStraightLine();
@@ -472,6 +497,89 @@ public sealed class PixelCanvas : Control
         SetHoveredPixel(end);
     }
 
+    private void BeginShape(IPointer pointer, PixelCoordinate coordinate)
+    {
+        _isDrawing = true;
+        _shapeGesture.Begin(ActiveTool, coordinate);
+        SetHoveredPixel(coordinate);
+        pointer.Capture(this);
+        InvalidateVisual();
+    }
+
+    private void UpdateShapeEnd(Point pointerPosition)
+    {
+        if (!TryGetPixelCoordinate(pointerPosition, out var coordinate))
+        {
+            return;
+        }
+
+        _shapeGesture.Update(coordinate);
+        SetHoveredPixel(coordinate);
+        InvalidateVisual();
+    }
+
+    private void PaintShape()
+    {
+        if (Document is not { } document ||
+            _shapeGesture.Current is not { } shape)
+        {
+            return;
+        }
+
+        _activeHistory = History;
+        _activeHistory?.BeginChangeSet(document);
+
+        if (_bitmap is null)
+        {
+            DrawShape(document, shape);
+            return;
+        }
+
+        using (var framebuffer = _bitmap.Lock())
+        {
+            _bitmapUpdateBatch = new BitmapUpdateBatch(framebuffer.Address, framebuffer.RowBytes);
+
+            try
+            {
+                DrawShape(document, shape);
+            }
+            finally
+            {
+                _bitmapUpdateBatch = null;
+            }
+        }
+
+        InvalidateVisual();
+    }
+
+    private void DrawShape(PixelDocument document, ShapeGestureState shape)
+    {
+        var color = ToolColorResolver.Resolve(shape.Tool, BrushColor);
+
+        if (shape.Tool == EditorTool.Rectangle)
+        {
+            OutlineShapeTool.DrawRectangle(
+                document,
+                shape.Start.X,
+                shape.Start.Y,
+                shape.End.X,
+                shape.End.Y,
+                color,
+                BrushSize);
+        }
+        else
+        {
+            OutlineShapeTool.DrawEllipse(
+                document,
+                shape.Start.X,
+                shape.Start.Y,
+                shape.End.X,
+                shape.End.Y,
+                color,
+                BrushSize);
+        }
+    }
+
     private void PaintBrushLine(
         PixelDocument document,
         PixelCoordinate start,
@@ -576,6 +684,7 @@ public sealed class PixelCanvas : Control
         _lastPaintedPixel = null;
         _straightLineStart = null;
         _straightLineEnd = null;
+        _shapeGesture.Cancel();
         _strokeMode = BrushStrokeMode.Freehand;
         _activeHistory?.CommitChangeSet();
         _activeHistory = null;
@@ -640,6 +749,59 @@ public sealed class PixelCanvas : Control
                 BrushSize,
                 Document!.Width,
                 Document.Height));
+    }
+
+    private void DrawShapeGuide(DrawingContext context, CanvasLayoutResult layout)
+    {
+        if (_shapeGesture.Current is not { } shape)
+        {
+            return;
+        }
+
+        if (shape.Start == shape.End)
+        {
+            context.DrawRectangle(
+                HoverFill,
+                HoverOutline,
+                CanvasPixelGrid.GetBrushBounds(
+                    layout,
+                    shape.Start.X,
+                    shape.Start.Y,
+                    BrushSize,
+                    Document!.Width,
+                    Document.Height));
+            return;
+        }
+
+        var start = CanvasPixelGrid.GetPixelBounds(
+            layout,
+            shape.Start.X,
+            shape.Start.Y).Center;
+        var end = CanvasPixelGrid.GetPixelBounds(
+            layout,
+            shape.End.X,
+            shape.End.Y).Center;
+        var bounds = new Rect(
+            Math.Min(start.X, end.X),
+            Math.Min(start.Y, end.Y),
+            Math.Abs(end.X - start.X),
+            Math.Abs(end.Y - start.Y));
+        var pen = new Pen(Brushes.White, Math.Max(1, BrushSize * layout.PixelScale));
+
+        if (bounds.Width == 0 || bounds.Height == 0)
+        {
+            context.DrawLine(pen, start, end);
+            return;
+        }
+
+        if (shape.Tool == EditorTool.Rectangle)
+        {
+            context.DrawRectangle(null, pen, bounds);
+        }
+        else
+        {
+            context.DrawEllipse(null, pen, bounds);
+        }
     }
 
     private CanvasLayoutResult GetCanvasLayout()

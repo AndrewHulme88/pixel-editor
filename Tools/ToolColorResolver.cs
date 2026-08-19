@@ -11,6 +11,8 @@ internal static class ToolColorResolver
         EditorTool.Brush => brushColor,
         EditorTool.Eraser => PixelColor.Transparent,
         EditorTool.Fill => brushColor,
+        EditorTool.Rectangle => brushColor,
+        EditorTool.Ellipse => brushColor,
         _ => throw new ArgumentOutOfRangeException(nameof(tool), tool, "Unsupported editor tool.")
     };
 }

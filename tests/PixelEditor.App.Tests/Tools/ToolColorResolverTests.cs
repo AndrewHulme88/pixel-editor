@@ -33,6 +33,16 @@ public sealed class ToolColorResolverTests
         Assert.Equal(BrushColor, color);
     }
 
+    [Theory]
+    [InlineData((int)EditorTool.Rectangle)]
+    [InlineData((int)EditorTool.Ellipse)]
+    public void Resolve_WithOutlineShape_ReturnsBrushColor(int toolValue)
+    {
+        var color = ToolColorResolver.Resolve((EditorTool)toolValue, BrushColor);
+
+        Assert.Equal(BrushColor, color);
+    }
+
     [Fact]
     public void Resolve_WithEyedropper_Throws()
     {

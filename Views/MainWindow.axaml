@@ -47,55 +47,68 @@
         <Border Grid.Row="1"
                 Padding="12,8"
                 Background="#1B1B1B">
-            <StackPanel Orientation="Horizontal"
-                        Spacing="8">
-                <RadioButton Content="Brush (B)"
-                             GroupName="EditorTools"
-                             HotKey="B"
-                             IsChecked="{Binding IsBrushSelected, Mode=OneWay}"
-                             Command="{Binding SelectBrushCommand}" />
-                <RadioButton Content="Eraser (E)"
-                             GroupName="EditorTools"
-                             HotKey="E"
-                             IsChecked="{Binding IsEraserSelected, Mode=OneWay}"
-                             Command="{Binding SelectEraserCommand}" />
-                <RadioButton Content="Fill (G)"
-                             GroupName="EditorTools"
-                             HotKey="G"
-                             IsChecked="{Binding IsFillSelected, Mode=OneWay}"
-                             Command="{Binding SelectFillCommand}" />
-                <RadioButton Content="Eyedropper (I)"
-                             GroupName="EditorTools"
-                             HotKey="I"
-                             IsChecked="{Binding IsEyedropperSelected, Mode=OneWay}"
-                             Command="{Binding SelectEyedropperCommand}" />
-                <TextBlock Margin="8,0,0,0"
-                           VerticalAlignment="Center"
-                           Foreground="#E6E6E6"
-                           Text="Colour:" />
-                <ColorPicker Width="44"
-                             Height="32"
-                             IsAlphaEnabled="True"
-                             IsAlphaVisible="True"
-                             Color="{Binding BrushColor, Converter={StaticResource PixelColorConverter}, Mode=TwoWay}" />
-                <TextBlock Margin="8,0,0,0"
-                           VerticalAlignment="Center"
-                           Foreground="#E6E6E6"
-                           Text="Size:" />
-                <ComboBox Width="76"
-                          x:Name="BrushSizeSelector"
-                          IsEditable="True"
-                          ItemsSource="{Binding BrushSizeOptions}"
-                          Text="{Binding BrushSizeText, Mode=TwoWay}"
-                          LostFocus="BrushSizeSelector_OnLostFocus" />
-                <Border Width="1"
-                        Height="24"
-                        Margin="6,0"
-                        Background="#4A4A4A" />
-                <Button Content="Undo"
-                        Command="{Binding UndoCommand}" />
-                <Button Content="Redo"
-                        Command="{Binding RedoCommand}" />
+            <StackPanel Spacing="6">
+                <StackPanel Orientation="Horizontal"
+                            Spacing="8">
+                    <RadioButton Content="Brush (B)"
+                                 GroupName="EditorTools"
+                                 HotKey="B"
+                                 IsChecked="{Binding IsBrushSelected, Mode=OneWay}"
+                                 Command="{Binding SelectBrushCommand}" />
+                    <RadioButton Content="Eraser (E)"
+                                 GroupName="EditorTools"
+                                 HotKey="E"
+                                 IsChecked="{Binding IsEraserSelected, Mode=OneWay}"
+                                 Command="{Binding SelectEraserCommand}" />
+                    <RadioButton Content="Fill (G)"
+                                 GroupName="EditorTools"
+                                 HotKey="G"
+                                 IsChecked="{Binding IsFillSelected, Mode=OneWay}"
+                                 Command="{Binding SelectFillCommand}" />
+                    <RadioButton Content="Eyedropper (I)"
+                                 GroupName="EditorTools"
+                                 HotKey="I"
+                                 IsChecked="{Binding IsEyedropperSelected, Mode=OneWay}"
+                                 Command="{Binding SelectEyedropperCommand}" />
+                    <RadioButton Content="Rectangle"
+                                 GroupName="EditorTools"
+                                 IsChecked="{Binding IsRectangleSelected, Mode=OneWay}"
+                                 Command="{Binding SelectRectangleCommand}" />
+                    <RadioButton Content="Ellipse"
+                                 GroupName="EditorTools"
+                                 IsChecked="{Binding IsEllipseSelected, Mode=OneWay}"
+                                 Command="{Binding SelectEllipseCommand}" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal"
+                            Spacing="8">
+                    <TextBlock Margin="8,0,0,0"
+                               VerticalAlignment="Center"
+                               Foreground="#E6E6E6"
+                               Text="Colour:" />
+                    <ColorPicker Width="44"
+                                 Height="32"
+                                 IsAlphaEnabled="True"
+                                 IsAlphaVisible="True"
+                                 Color="{Binding BrushColor, Converter={StaticResource PixelColorConverter}, Mode=TwoWay}" />
+                    <TextBlock Margin="8,0,0,0"
+                               VerticalAlignment="Center"
+                               Foreground="#E6E6E6"
+                               Text="Size:" />
+                    <ComboBox Width="76"
+                              x:Name="BrushSizeSelector"
+                              IsEditable="True"
+                              ItemsSource="{Binding BrushSizeOptions}"
+                              Text="{Binding BrushSizeText, Mode=TwoWay}"
+                              LostFocus="BrushSizeSelector_OnLostFocus" />
+                    <Border Width="1"
+                            Height="24"
+                            Margin="6,0"
+                            Background="#4A4A4A" />
+                    <Button Content="Undo"
+                            Command="{Binding UndoCommand}" />
+                    <Button Content="Redo"
+                            Command="{Binding RedoCommand}" />
+                </StackPanel>
             </StackPanel>
         </Border>
 
@@ -118,7 +131,7 @@
                                Text="{Binding ActiveTool}" />
                     <TextBlock Margin="0,0,18,0"
                                Foreground="#E6E6E6"
-                               Text="· Alt/Option-click to sample · Left-drag to draw · Shift-drag for line" />
+                               Text="· Alt/Option-click to sample · Drag to draw · Shift-drag brush for line" />
                     <TextBlock Foreground="#AFAFAF"
                                Text="Pixel:" />
                     <TextBlock MinWidth="60"

@@ -149,16 +149,70 @@ public sealed class CanvasDrawingWorkflowTests
         window.Close();
     }
 
-    private static (Window, PixelCanvas, PixelDocument, DocumentHistory) ShowCanvas(
-        EditorTool tool)
+    [AvaloniaTheory]
+    [InlineData((int)EditorTool.Rectangle)]
+    [InlineData((int)EditorTool.Ellipse)]
+    public void ShapeDrag_PreviewsThenCommitsOneUndoableOutline(int toolValue)
     {
-        var document = new PixelDocument(4, 4);
+        var tool = (EditorTool)toolValue;
+        var (window, canvas, document, history) = ShowCanvas(tool, width: 8, height: 7);
+        var start = GetWindowPixelCentre(window, canvas, document, 1, 1);
+        var end = GetWindowPixelCentre(window, canvas, document, 6, 5);
+
+        window.MouseDown(start, MouseButton.Left, RawInputModifiers.LeftMouseButton);
+        window.MouseMove(end, RawInputModifiers.LeftMouseButton);
+
+        AssertDocumentIsTransparent(document);
+        Assert.False(history.CanUndo);
+
+        window.MouseUp(end, MouseButton.Left, RawInputModifiers.None);
+
+        Assert.True(CountColoredPixels(document) > 0);
+        Assert.Equal(PixelColor.Transparent, document.GetPixel(3, 3));
+        Assert.True(history.CanUndo);
+        Assert.True(history.Undo());
+        AssertDocumentIsTransparent(document);
+        Assert.False(history.CanUndo);
+        window.Close();
+    }
+
+    [AvaloniaTheory]
+    [InlineData((int)EditorTool.Rectangle)]
+    [InlineData((int)EditorTool.Ellipse)]
+    public void ShapeClick_PaintsOneSizedBrushStamp(int toolValue)
+    {
+        var tool = (EditorTool)toolValue;
+        var (window, canvas, document, history) = ShowCanvas(
+            tool,
+            width: 9,
+            height: 9,
+            brushSize: 3);
+        var point = GetWindowPixelCentre(window, canvas, document, 4, 4);
+
+        window.MouseDown(point, MouseButton.Left, RawInputModifiers.LeftMouseButton);
+        window.MouseUp(point, MouseButton.Left, RawInputModifiers.None);
+
+        Assert.Equal(9, CountColoredPixels(document));
+        Assert.Equal(BrushColor, document.GetPixel(3, 3));
+        Assert.Equal(BrushColor, document.GetPixel(5, 5));
+        Assert.True(history.CanUndo);
+        window.Close();
+    }
+
+    private static (Window, PixelCanvas, PixelDocument, DocumentHistory) ShowCanvas(
+        EditorTool tool,
+        int width = 4,
+        int height = 4,
+        int brushSize = BrushTool.MinimumSize)
+    {
+        var document = new PixelDocument(width, height);
         var history = new DocumentHistory();
         var canvas = new PixelCanvas
         {
             Document = document,
             History = history,
             BrushColor = BrushColor,
+            BrushSize = brushSize,
             ActiveTool = tool
         };
         var window = new Window
@@ -185,5 +239,34 @@ public sealed class CanvasDrawingWorkflowTests
         var localPoint = CanvasPixelGrid.GetPixelBounds(layout, x, y).Center;
         return canvas.TranslatePoint(localPoint, window)
             ?? throw new InvalidOperationException("Canvas position could not be mapped to the window.");
+    }
+
+    private static int CountColoredPixels(PixelDocument document)
+    {
+        var count = 0;
+
+        for (var y = 0; y < document.Height; y++)
+        {
+            for (var x = 0; x < document.Width; x++)
+            {
+                if (document.GetPixel(x, y) != PixelColor.Transparent)
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
+
+    private static void AssertDocumentIsTransparent(PixelDocument document)
+    {
+        for (var y = 0; y < document.Height; y++)
+        {
+            for (var x = 0; x < document.Width; x++)
+            {
+                Assert.Equal(PixelColor.Transparent, document.GetPixel(x, y));
+            }
+        }
     }
 }
