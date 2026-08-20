@@ -7,5 +7,6 @@ public enum EditorTool
     Fill,
     Eyedropper,
     Rectangle,
-    Ellipse
+    Ellipse,
+    Selection
 }

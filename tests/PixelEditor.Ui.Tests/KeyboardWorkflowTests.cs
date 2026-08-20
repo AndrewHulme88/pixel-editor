@@ -8,6 +8,7 @@ using pixel_editor.Rendering;
 using pixel_editor.ViewModels;
 using pixel_editor.Views;
 using PixelEditor.Core.Documents;
+using PixelEditor.Core.Selections;
 using PixelEditor.Core.Tools;
 using Xunit;
 
@@ -83,6 +84,39 @@ public sealed class KeyboardWorkflowTests
         Assert.Equal(historyStateId, viewModel.History.CurrentStateId);
         Assert.False(viewModel.IsDirty);
         Assert.False(viewModel.CanUndo);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void SelectionShortcutAndEscape_SelectAndClearWithoutEditing()
+    {
+        var viewModel = new MainViewModel();
+        var historyStateId = viewModel.History.CurrentStateId;
+        var window = CreateWindow(viewModel);
+        var canvas = window.FindControl<PixelCanvas>("EditorCanvas")!;
+        var selector = window.FindControl<ComboBox>("BrushSizeSelector")!;
+        var pixel = new PixelCoordinate(8, 8);
+        var point = GetWindowPixelCentre(window, canvas, viewModel.Document, pixel);
+
+        PressAndRelease(window, PhysicalKey.M, RawInputModifiers.None);
+
+        Assert.Equal(EditorTool.Selection, viewModel.ActiveTool);
+
+        window.MouseDown(point, MouseButton.Left, RawInputModifiers.LeftMouseButton);
+        window.MouseUp(point, MouseButton.Left, RawInputModifiers.None);
+
+        Assert.Equal(
+            new PixelSelectionBounds(pixel.X, pixel.Y, 1, 1),
+            viewModel.Selection.Bounds);
+        Assert.Equal(historyStateId, viewModel.History.CurrentStateId);
+        Assert.False(viewModel.IsDirty);
+
+        selector.Focus();
+        PressAndRelease(window, PhysicalKey.Escape, RawInputModifiers.None);
+
+        Assert.False(viewModel.Selection.HasSelection);
+        Assert.Equal(historyStateId, viewModel.History.CurrentStateId);
+        Assert.False(viewModel.IsDirty);
         window.Close();
     }
 

@@ -11,6 +11,7 @@ internal enum EditorShortcut
     SaveAs,
     Undo,
     Redo,
+    ClearSelection,
     DecreaseBrushSize,
     IncreaseBrushSize
 }
@@ -22,6 +23,11 @@ internal static class EditorKeyboardShortcuts
         var commandModifier = isMacOs
             ? KeyModifiers.Meta
             : KeyModifiers.Control;
+
+        if (modifiers == KeyModifiers.None && key == Key.Escape)
+        {
+            return EditorShortcut.ClearSelection;
+        }
 
         if (modifiers == KeyModifiers.None && key is Key.OemMinus or Key.Subtract)
         {

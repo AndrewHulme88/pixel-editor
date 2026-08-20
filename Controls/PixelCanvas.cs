@@ -12,6 +12,7 @@ using pixel_editor.Rendering;
 using pixel_editor.Tools;
 using PixelEditor.Core.Documents;
 using PixelEditor.Core.History;
+using PixelEditor.Core.Selections;
 using PixelEditor.Core.Tools;
 
 namespace pixel_editor.Controls;
@@ -52,15 +53,23 @@ public sealed class PixelCanvas : Control
     public static readonly StyledProperty<DocumentHistory?> HistoryProperty =
         AvaloniaProperty.Register<PixelCanvas, DocumentHistory?>(nameof(History));
 
+    public static readonly StyledProperty<RectangularSelection?> SelectionProperty =
+        AvaloniaProperty.Register<PixelCanvas, RectangularSelection?>(nameof(Selection));
+
     private static readonly IPen CanvasBorder = new Pen(new SolidColorBrush(Color.FromRgb(96, 96, 96)));
     private static readonly IBrush HoverFill = new SolidColorBrush(Color.FromArgb(48, 255, 255, 255));
     private static readonly IPen HoverOutline = new Pen(Brushes.White, 1);
+    private static readonly IPen SelectionBorder = new Pen(Brushes.Black, 1);
+    private static readonly IPen SelectionDashes = new Pen(Brushes.White, 1, DashStyle.Dash);
 
     private WriteableBitmap? _bitmap;
     private readonly CheckerboardBrushCache _checkerboardBrushCache = new();
     private readonly CanvasViewportController _viewport = new();
     private readonly ShapeGesture _shapeGesture = new();
+    private readonly SelectionGesture _selectionGesture = new();
     private PixelDocument? _subscribedDocument;
+    private RectangularSelection? _subscribedSelection;
+    private IPointer? _selectionPointer;
     private PixelCoordinate? _hoveredPixel;
     private PixelCoordinate? _lastPaintedPixel;
     private PixelCoordinate? _straightLineStart;
@@ -125,6 +134,12 @@ public sealed class PixelCanvas : Control
         set => SetValue(HistoryProperty, value);
     }
 
+    public RectangularSelection? Selection
+    {
+        get => GetValue(SelectionProperty);
+        set => SetValue(SelectionProperty, value);
+    }
+
     public void ZoomIn() => ZoomAt(new Point(Bounds.Width / 2, Bounds.Height / 2), true);
 
     public void ZoomOut() => ZoomAt(new Point(Bounds.Width / 2, Bounds.Height / 2), false);
@@ -135,6 +150,19 @@ public sealed class PixelCanvas : Control
         UpdateZoomText();
         SetHoveredPixel(null);
         InvalidateVisual();
+    }
+
+    public bool CancelOrClearSelection()
+    {
+        if (_selectionGesture.IsActive)
+        {
+            var pointer = _selectionPointer;
+            CompleteStroke();
+            pointer?.Capture(null);
+            return true;
+        }
+
+        return Selection?.Clear() == true;
     }
 
     public override void Render(DrawingContext context)
@@ -152,6 +180,8 @@ public sealed class PixelCanvas : Control
         var source = new Rect(0, 0, Document.Width, Document.Height);
         context.DrawImage(_bitmap, source, layout.Destination);
         context.DrawRectangle(null, CanvasBorder, layout.Destination);
+        DrawSelectionMarquee(context, layout);
+        DrawSelectionGuide(context, layout);
         DrawShapeGuide(context, layout);
         DrawStraightLineGuide(context, layout);
         DrawHoveredPixel(context, layout);
@@ -187,7 +217,12 @@ public sealed class PixelCanvas : Control
 
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
-            if (_shapeGesture.IsActive)
+            if (_selectionGesture.IsActive)
+            {
+                UpdateSelectionEnd(pointerPosition);
+                CommitSelection();
+            }
+            else if (_shapeGesture.IsActive)
             {
                 UpdateShapeEnd(pointerPosition);
                 PaintShape();
@@ -199,6 +234,12 @@ public sealed class PixelCanvas : Control
             }
 
             EndBrushStroke(e.Pointer);
+            return;
+        }
+
+        if (_selectionGesture.IsActive)
+        {
+            UpdateSelectionEnd(pointerPosition);
             return;
         }
 
@@ -255,6 +296,13 @@ public sealed class PixelCanvas : Control
             return;
         }
 
+        if (ActiveTool == EditorTool.Selection)
+        {
+            BeginSelection(e.Pointer, coordinate);
+            e.Handled = true;
+            return;
+        }
+
         if (ActiveTool is EditorTool.Rectangle or EditorTool.Ellipse)
         {
             BeginShape(e.Pointer, coordinate);
@@ -305,7 +353,12 @@ public sealed class PixelCanvas : Control
             return;
         }
 
-        if (_shapeGesture.IsActive)
+        if (_selectionGesture.IsActive)
+        {
+            UpdateSelectionEnd(e.GetPosition(this));
+            CommitSelection();
+        }
+        else if (_shapeGesture.IsActive)
         {
             UpdateShapeEnd(e.GetPosition(this));
             PaintShape();
@@ -350,6 +403,19 @@ public sealed class PixelCanvas : Control
         SetHoveredPixel(null);
     }
 
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (!e.Handled &&
+            e.Key == Key.Escape &&
+            e.KeyModifiers == KeyModifiers.None &&
+            CancelOrClearSelection())
+        {
+            e.Handled = true;
+        }
+    }
+
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
@@ -363,6 +429,12 @@ public sealed class PixelCanvas : Control
             SetHoveredPixel(null);
             RebuildBitmap();
         }
+        else if (change.Property == SelectionProperty)
+        {
+            CompleteStroke();
+            SubscribeToSelection(Selection);
+            InvalidateVisual();
+        }
         else if (change.Property == BrushSizeProperty ||
                  change.Property == ActiveToolProperty ||
                  change.Property == ShapeModeProperty)
@@ -375,6 +447,7 @@ public sealed class PixelCanvas : Control
     {
         base.OnAttachedToVisualTree(e);
         SubscribeToDocument(Document);
+        SubscribeToSelection(Selection);
 
         if (_bitmap is null && Document is not null)
         {
@@ -386,6 +459,7 @@ public sealed class PixelCanvas : Control
     {
         CompleteStroke();
         SubscribeToDocument(null);
+        SubscribeToSelection(null);
         DisposeBitmap();
         base.OnDetachedFromVisualTree(e);
     }
@@ -517,6 +591,51 @@ public sealed class PixelCanvas : Control
         SetHoveredPixel(coordinate);
         pointer.Capture(this);
         InvalidateVisual();
+    }
+
+    private void BeginSelection(IPointer pointer, PixelCoordinate coordinate)
+    {
+        _isDrawing = true;
+        _selectionGesture.Begin(coordinate);
+        _selectionPointer = pointer;
+        SetHoveredPixel(coordinate);
+        pointer.Capture(this);
+        InvalidateVisual();
+    }
+
+    private void UpdateSelectionEnd(Point pointerPosition)
+    {
+        if (Document is not { } document)
+        {
+            return;
+        }
+
+        var coordinate = CanvasCoordinateMapper.MapClamped(
+            pointerPosition,
+            GetCanvasLayout(),
+            document.Width,
+            document.Height);
+        _selectionGesture.Update(coordinate);
+        SetHoveredPixel(coordinate);
+        InvalidateVisual();
+    }
+
+    private void CommitSelection()
+    {
+        if (Document is not { } document ||
+            Selection is not { } selection ||
+            _selectionGesture.Current is not { } gesture)
+        {
+            return;
+        }
+
+        selection.SelectFromInclusiveCorners(
+            gesture.Start.X,
+            gesture.Start.Y,
+            gesture.End.X,
+            gesture.End.Y,
+            document.Width,
+            document.Height);
     }
 
     private void UpdateShapeEnd(Point pointerPosition)
@@ -733,6 +852,8 @@ public sealed class PixelCanvas : Control
         _straightLineStart = null;
         _straightLineEnd = null;
         _shapeGesture.Cancel();
+        _selectionGesture.Cancel();
+        _selectionPointer = null;
         _strokeMode = BrushStrokeMode.Freehand;
         _activeHistory?.CommitChangeSet();
         _activeHistory = null;
@@ -768,13 +889,61 @@ public sealed class PixelCanvas : Control
                 layout,
                 pixel.X,
                 pixel.Y,
-                ActiveTool is EditorTool.Fill or EditorTool.Eyedropper ||
+                ActiveTool is EditorTool.Fill or EditorTool.Eyedropper or EditorTool.Selection ||
                 (ActiveTool is EditorTool.Rectangle or EditorTool.Ellipse &&
                  ShapeMode == ShapeDrawMode.Filled)
                     ? BrushTool.MinimumSize
                     : BrushSize,
                 Document!.Width,
                 Document.Height));
+    }
+
+    private void DrawSelectionMarquee(
+        DrawingContext context,
+        CanvasLayoutResult layout)
+    {
+        if (_selectionGesture.IsActive || Selection?.Bounds is not { } bounds)
+        {
+            return;
+        }
+
+        DrawSelectionBounds(
+            context,
+            SelectionRenderLayout.Calculate(bounds, layout),
+            null);
+    }
+
+    private void DrawSelectionGuide(
+        DrawingContext context,
+        CanvasLayoutResult layout)
+    {
+        if (Document is not { } document ||
+            _selectionGesture.Current is not { } gesture)
+        {
+            return;
+        }
+
+        var bounds = PixelSelectionBounds.FromInclusiveCorners(
+            gesture.Start.X,
+            gesture.Start.Y,
+            gesture.End.X,
+            gesture.End.Y,
+            document.Width,
+            document.Height);
+
+        DrawSelectionBounds(
+            context,
+            SelectionRenderLayout.Calculate(bounds, layout),
+            HoverFill);
+    }
+
+    private static void DrawSelectionBounds(
+        DrawingContext context,
+        Rect bounds,
+        IBrush? fill)
+    {
+        context.DrawRectangle(fill, SelectionBorder, bounds);
+        context.DrawRectangle(null, SelectionDashes, bounds);
     }
 
     private void DrawStraightLineGuide(DrawingContext context, CanvasLayoutResult layout)
@@ -917,6 +1086,34 @@ public sealed class PixelCanvas : Control
             _subscribedDocument.PixelChanged += OnPixelChanged;
             _subscribedDocument.PixelSpansChanged += OnPixelSpansChanged;
             _subscribedDocument.PixelPatchChanged += OnPixelPatchChanged;
+        }
+    }
+
+    private void SubscribeToSelection(RectangularSelection? selection)
+    {
+        if (ReferenceEquals(_subscribedSelection, selection))
+        {
+            return;
+        }
+
+        if (_subscribedSelection is not null)
+        {
+            _subscribedSelection.Changed -= OnSelectionChanged;
+        }
+
+        _subscribedSelection = selection;
+
+        if (_subscribedSelection is not null)
+        {
+            _subscribedSelection.Changed += OnSelectionChanged;
+        }
+    }
+
+    private void OnSelectionChanged(object? sender, EventArgs e)
+    {
+        if (ReferenceEquals(sender, Selection))
+        {
+            InvalidateVisual();
         }
     }
 

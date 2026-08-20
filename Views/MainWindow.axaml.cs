@@ -74,6 +74,11 @@ public partial class MainWindow : Window
             viewModel.RedoCommand.Execute(null);
             e.Handled = true;
         }
+        else if (shortcut == EditorShortcut.ClearSelection &&
+                 EditorCanvas.CancelOrClearSelection())
+        {
+            e.Handled = true;
+        }
         else if (shortcut == EditorShortcut.DecreaseBrushSize)
         {
             viewModel.DecreaseBrushSizeCommand.Execute(null);

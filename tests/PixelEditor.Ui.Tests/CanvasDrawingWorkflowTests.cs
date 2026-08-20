@@ -7,6 +7,7 @@ using pixel_editor.Controls;
 using pixel_editor.Rendering;
 using PixelEditor.Core.Documents;
 using PixelEditor.Core.History;
+using PixelEditor.Core.Selections;
 using PixelEditor.Core.Tools;
 using Xunit;
 
@@ -257,6 +258,76 @@ public sealed class CanvasDrawingWorkflowTests
         window.Close();
     }
 
+    [AvaloniaFact]
+    public void SelectionDrag_PreviewsThenCommitsReverseBoundsWithoutEditing()
+    {
+        var (window, canvas, document, history) = ShowCanvas(
+            EditorTool.Selection,
+            width: 8,
+            height: 7);
+        var historyStateId = history.CurrentStateId;
+        var start = GetWindowPixelCentre(window, canvas, document, 6, 5);
+        var end = GetWindowPixelCentre(window, canvas, document, 1, 1);
+
+        window.MouseDown(start, MouseButton.Left, RawInputModifiers.LeftMouseButton);
+        window.MouseMove(end, RawInputModifiers.LeftMouseButton);
+
+        Assert.False(canvas.Selection!.HasSelection);
+        AssertDocumentIsTransparent(document);
+        Assert.Equal(historyStateId, history.CurrentStateId);
+
+        window.MouseUp(end, MouseButton.Left, RawInputModifiers.None);
+
+        Assert.Equal(
+            new PixelSelectionBounds(1, 1, 6, 5),
+            canvas.Selection.Bounds);
+        AssertDocumentIsTransparent(document);
+        Assert.Equal(historyStateId, history.CurrentStateId);
+        Assert.False(history.CanUndo);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void SelectionClick_SelectsOnePixel()
+    {
+        var (window, canvas, document, history) = ShowCanvas(EditorTool.Selection);
+        var point = GetWindowPixelCentre(window, canvas, document, 2, 3);
+
+        window.MouseDown(point, MouseButton.Left, RawInputModifiers.LeftMouseButton);
+        window.MouseUp(point, MouseButton.Left, RawInputModifiers.None);
+
+        Assert.Equal(
+            new PixelSelectionBounds(2, 3, 1, 1),
+            canvas.Selection!.Bounds);
+        Assert.False(history.CanUndo);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void CancellingSelectionDrag_PreservesCommittedSelection()
+    {
+        var (window, canvas, document, _) = ShowCanvas(EditorTool.Selection);
+        canvas.Selection!.SelectFromInclusiveCorners(0, 0, 1, 1, 4, 4);
+        var start = GetWindowPixelCentre(window, canvas, document, 3, 3);
+        var end = GetWindowPixelCentre(window, canvas, document, 2, 2);
+
+        window.MouseDown(start, MouseButton.Left, RawInputModifiers.LeftMouseButton);
+        window.MouseMove(end, RawInputModifiers.LeftMouseButton);
+
+        window.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
+        window.KeyReleaseQwerty(PhysicalKey.Escape, RawInputModifiers.None);
+
+        Assert.Equal(
+            new PixelSelectionBounds(0, 0, 2, 2),
+            canvas.Selection.Bounds);
+
+        window.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
+        window.KeyReleaseQwerty(PhysicalKey.Escape, RawInputModifiers.None);
+
+        Assert.False(canvas.Selection.HasSelection);
+        window.Close();
+    }
+
     private static (Window, PixelCanvas, PixelDocument, DocumentHistory) ShowCanvas(
         EditorTool tool,
         int width = 4,
@@ -270,6 +341,7 @@ public sealed class CanvasDrawingWorkflowTests
         {
             Document = document,
             History = history,
+            Selection = new RectangularSelection(),
             BrushColor = BrushColor,
             BrushSize = brushSize,
             ActiveTool = tool,

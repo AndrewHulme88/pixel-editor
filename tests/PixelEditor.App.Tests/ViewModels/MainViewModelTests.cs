@@ -18,6 +18,7 @@ public sealed class MainViewModelTests
         Assert.False(viewModel.IsDirty);
         Assert.False(viewModel.CanUndo);
         Assert.False(viewModel.CanRedo);
+        Assert.False(viewModel.Selection.HasSelection);
 
         for (var y = 0; y < viewModel.Document.Height; y++)
         {
@@ -40,6 +41,7 @@ public sealed class MainViewModelTests
         Assert.False(viewModel.IsEyedropperSelected);
         Assert.False(viewModel.IsRectangleSelected);
         Assert.False(viewModel.IsEllipseSelected);
+        Assert.False(viewModel.IsSelectionSelected);
         Assert.False(viewModel.IsShapeSelected);
         Assert.Equal(ShapeDrawMode.Outline, viewModel.ShapeMode);
         Assert.Equal(
@@ -131,6 +133,40 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public void SelectSelectionCommand_SelectsSelectionTool()
+    {
+        var viewModel = new MainViewModel();
+
+        viewModel.SelectSelectionCommand.Execute(null);
+
+        Assert.Equal(EditorTool.Selection, viewModel.ActiveTool);
+        Assert.True(viewModel.IsSelectionSelected);
+        Assert.False(viewModel.IsBrushSelected);
+        Assert.False(viewModel.IsShapeSelected);
+    }
+
+    [Fact]
+    public void SelectionChanges_DoNotChangeDocumentHistoryOrDirtyState()
+    {
+        var viewModel = new MainViewModel();
+        var historyStateId = viewModel.History.CurrentStateId;
+
+        viewModel.Selection.SelectFromInclusiveCorners(
+            2,
+            3,
+            7,
+            9,
+            viewModel.Document.Width,
+            viewModel.Document.Height);
+        viewModel.SelectBrushCommand.Execute(null);
+
+        Assert.True(viewModel.Selection.HasSelection);
+        Assert.Equal(historyStateId, viewModel.History.CurrentStateId);
+        Assert.False(viewModel.CanUndo);
+        Assert.False(viewModel.IsDirty);
+    }
+
+    [Fact]
     public void UndoAndRedoCommands_FollowDocumentHistory()
     {
         var viewModel = new MainViewModel();
@@ -163,6 +199,7 @@ public sealed class MainViewModelTests
         viewModel.History.BeginChangeSet(viewModel.Document);
         viewModel.Document.SetPixel(0, 0, viewModel.BrushColor);
         viewModel.History.CommitChangeSet();
+        viewModel.Selection.SelectFromInclusiveCorners(0, 0, 1, 1, 16, 16);
         Assert.True(viewModel.CanUndo);
 
         viewModel.ReplaceDocument(replacement, "opened.png");
@@ -172,6 +209,7 @@ public sealed class MainViewModelTests
         Assert.False(viewModel.IsDirty);
         Assert.False(viewModel.CanUndo);
         Assert.False(viewModel.CanRedo);
+        Assert.False(viewModel.Selection.HasSelection);
         Assert.Contains(nameof(MainViewModel.Document), changedProperties);
     }
 
@@ -188,6 +226,7 @@ public sealed class MainViewModelTests
     {
         var viewModel = new MainViewModel();
         RecordPixelEdit(viewModel, 0, 0);
+        viewModel.Selection.SelectFromInclusiveCorners(0, 0, 1, 1, 16, 16);
 
         viewModel.CreateNewDocument(24, 18);
 
@@ -199,6 +238,7 @@ public sealed class MainViewModelTests
         Assert.True(viewModel.IsDirty);
         Assert.False(viewModel.CanUndo);
         Assert.False(viewModel.CanRedo);
+        Assert.False(viewModel.Selection.HasSelection);
     }
 
     [Theory]
@@ -224,6 +264,7 @@ public sealed class MainViewModelTests
         var viewModel = new MainViewModel();
         viewModel.MarkDocumentSaved("art.png");
         RecordPixelEdit(viewModel, 0, 0);
+        viewModel.Selection.SelectFromInclusiveCorners(0, 0, 1, 1, 16, 16);
         var retainedColor = viewModel.Document.GetPixel(0, 0);
 
         var wasResized = viewModel.ResizeDocument(20, 18, CanvasAnchor.TopLeft);
@@ -236,6 +277,7 @@ public sealed class MainViewModelTests
         Assert.True(viewModel.IsDirty);
         Assert.False(viewModel.CanUndo);
         Assert.False(viewModel.CanRedo);
+        Assert.False(viewModel.Selection.HasSelection);
     }
 
     [Fact]
@@ -244,6 +286,7 @@ public sealed class MainViewModelTests
         var viewModel = new MainViewModel();
         RecordPixelEdit(viewModel, 0, 0);
         viewModel.MarkDocumentSaved("art.png");
+        viewModel.Selection.SelectFromInclusiveCorners(0, 0, 1, 1, 16, 16);
         var original = viewModel.Document;
 
         var wasResized = viewModel.ResizeDocument(
@@ -255,6 +298,7 @@ public sealed class MainViewModelTests
         Assert.Same(original, viewModel.Document);
         Assert.False(viewModel.IsDirty);
         Assert.True(viewModel.CanUndo);
+        Assert.True(viewModel.Selection.HasSelection);
     }
 
     [Theory]

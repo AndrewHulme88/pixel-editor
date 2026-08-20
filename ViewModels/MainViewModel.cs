@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PixelEditor.Core.Documents;
 using PixelEditor.Core.History;
+using PixelEditor.Core.Selections;
 using PixelEditor.Core.Tools;
 
 namespace pixel_editor.ViewModels;
@@ -18,6 +19,7 @@ public partial class MainViewModel : ViewModelBase
     {
         Document = new PixelDocument(16, 16);
         History = new DocumentHistory();
+        Selection = new RectangularSelection();
         _savedHistoryStateId = History.CurrentStateId;
         History.Changed += OnHistoryChanged;
     }
@@ -26,6 +28,8 @@ public partial class MainViewModel : ViewModelBase
     public partial PixelDocument Document { get; private set; }
 
     public DocumentHistory History { get; }
+
+    public RectangularSelection Selection { get; }
 
     public IReadOnlyList<int> BrushSizeOptions { get; } =
         [1, 2, 3, 4, 5, 8, 12, 16, 24, 32, 48, 64];
@@ -85,6 +89,7 @@ public partial class MainViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(IsRectangleSelected))]
     [NotifyPropertyChangedFor(nameof(IsEllipseSelected))]
     [NotifyPropertyChangedFor(nameof(IsShapeSelected))]
+    [NotifyPropertyChangedFor(nameof(IsSelectionSelected))]
     public partial EditorTool ActiveTool { get; set; } = EditorTool.Brush;
 
     public bool IsBrushSelected => ActiveTool == EditorTool.Brush;
@@ -100,6 +105,8 @@ public partial class MainViewModel : ViewModelBase
     public bool IsEllipseSelected => ActiveTool == EditorTool.Ellipse;
 
     public bool IsShapeSelected => ActiveTool is EditorTool.Rectangle or EditorTool.Ellipse;
+
+    public bool IsSelectionSelected => ActiveTool == EditorTool.Selection;
 
     public bool CanUndo => History.CanUndo;
 
@@ -126,6 +133,9 @@ public partial class MainViewModel : ViewModelBase
     private void SelectEllipse() => ActiveTool = EditorTool.Ellipse;
 
     [RelayCommand]
+    private void SelectSelection() => ActiveTool = EditorTool.Selection;
+
+    [RelayCommand]
     private void DecreaseBrushSize() => BrushSize--;
 
     [RelayCommand]
@@ -143,6 +153,7 @@ public partial class MainViewModel : ViewModelBase
         ArgumentException.ThrowIfNullOrWhiteSpace(documentName);
 
         History.Clear();
+        Selection.Clear();
         Document = document;
         DocumentName = documentName;
         _savedHistoryStateId = History.CurrentStateId;
@@ -154,6 +165,7 @@ public partial class MainViewModel : ViewModelBase
         var document = new PixelDocument(width, height);
 
         History.Clear();
+        Selection.Clear();
         Document = document;
         DocumentName = "Untitled";
         _savedHistoryStateId = null;
@@ -170,6 +182,7 @@ public partial class MainViewModel : ViewModelBase
         var resized = PixelDocumentResizer.Resize(Document, width, height, anchor);
 
         History.Clear();
+        Selection.Clear();
         Document = resized;
         _savedHistoryStateId = null;
         UpdateDirtyState();

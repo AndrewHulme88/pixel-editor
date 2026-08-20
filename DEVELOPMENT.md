@@ -72,7 +72,7 @@ The algorithm records horizontal spans as it discovers the region. A full 4096×
 
 ### D009: Keyboard shortcuts follow platform conventions
 
-Windows uses Ctrl-based file and history shortcuts; macOS uses Cmd-based shortcuts. Redo supports the common alternatives on both platforms. Tool hotkeys are `B` for brush, `E` for eraser, `G` for fill, and `I` for eyedropper. `-` and `=` decrease and increase brush size.
+Windows uses Ctrl-based file and history shortcuts; macOS uses Cmd-based shortcuts. Redo supports the common alternatives on both platforms. Tool hotkeys are `B` for brush, `E` for eraser, `G` for fill, `I` for eyedropper, and `M` for rectangular selection. `-` and `=` decrease and increase brush size. `Escape` cancels an active selection drag or clears a committed selection.
 
 ### D010: View navigation uses discrete pixel-perfect zoom
 
@@ -188,6 +188,18 @@ Reference Dry benchmark smoke measurement on 20 August 2026, using an Apple M4 a
 These are one-iteration cold-start checks rather than statistically rigorous results. The spans are prepared before the measured operation, and the benchmark includes history notifications but excludes Avalonia bitmap conversion. Use the normal benchmark job on the same hardware and power profile for comparisons.
 
 Separate outline and fill colours are deferred until a reusable primary/secondary colour model is designed. This avoids introducing a shape-only second colour setting that would later conflict with palettes, transparent fill, and colour swapping.
+
+### D027: Rectangular selection is transient editor state
+
+The selection model lives in `PixelEditor.Core` but remains separate from `PixelDocument`. Bounds use `X`, `Y`, `Width`, and `Height` with exclusive right and bottom edges. Pointer gestures use inclusive start and end pixels, then normalise, clip, and convert them when committed. This makes reverse dragging, one-pixel selections, and the document's right and bottom edges unambiguous.
+
+`SelectionGesture` owns the active drag coordinates. During a drag, `PixelCanvas` renders a temporary overlay and leaves the previous committed selection unchanged; release replaces it, while `Escape` cancels the drag and preserves the previous selection. A second `Escape` clears the committed selection. The static marquee uses contrasting solid and dashed outlines and is mapped through the same zoomed and panned canvas layout as document pixels.
+
+Selection changes do not mutate pixels, enter undo history, affect dirty state, or get stored in PNG files. They persist when switching tools or changing the viewport and clear when New, Open, or a real canvas resize replaces the document. Selecting the current canvas size is a no-op, so it also preserves the selection.
+
+Creating or clearing selection bounds is constant-time and retains no pixel buffer, so a dedicated benchmark is not useful for this foundation. Later copy, paste, move, and delete operations will handle pixel data and require maximum-canvas memory and timing benchmarks.
+
+Future combination modes need an explicit shortcut decision before implementation. `Shift` and `Alt`/`Option` commonly mean add to and subtract from a selection, but the editor already uses `Shift` for straight lines and `Alt`/`Option` for temporary eyedropper sampling.
 
 ## Performance findings and blockers
 
@@ -325,6 +337,7 @@ The headless suite currently covers:
 - Eyedropper clicks across alpha values and the `I` shortcut-to-sample workflow.
 - Non-destructive rectangle and ellipse previews, click-only stamps, commit, and undo.
 - Filled rectangle and ellipse previews, mixed-colour undo restoration, redo, and brush-size independence.
+- Rectangular selection reverse drags, click-only selections, cancellation, non-editing history behaviour, and the `M`/`Escape` workflow.
 - Platform-aware undo and redo plus brush-size keyboard shortcuts.
 - Creating a document through the platform New shortcut and modal dialog.
 - New-document dialog values and all unsaved-changes dialog choices.
@@ -375,10 +388,11 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 25. Added exact RGBA eyedropper sampling with the `I` shortcut and non-editing workflow coverage.
 26. Added outline rectangle and ellipse tools with deferred previews, sparse raster coverage, one-action history, and maximum-canvas benchmarks.
 27. Added single-colour Filled shape mode with row-span rasterisation, bounded mixed-colour patch history, and maximum-canvas benchmarks.
+28. Added a non-destructive rectangular selection foundation with pixel-aligned overlays, `M` and `Escape` shortcuts, and independent lifecycle and workflow coverage.
 
 ## Deferred or open decisions
 
-- Layers, animation, selections, shapes, and clipboard operations are outside the current MVP.
+- Layers, animation, selection editing, additional shapes, and clipboard operations are outside the current MVP.
 - A custom editable project format should be designed only when PNG can no longer represent required project state.
 - Undoable canvas resizing remains deferred.
 - Native Rust components remain an option only for a measured hotspot with a stable, coarse API boundary.

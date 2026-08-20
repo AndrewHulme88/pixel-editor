@@ -5,7 +5,7 @@ A desktop pixel art editor built with C# and Avalonia.
 ## MVP scope
 
 - Pixel canvas
-- Brush, eraser, fill, eyedropper, rectangle, and ellipse tools
+- Brush, eraser, fill, eyedropper, rectangle, ellipse, and rectangular selection tools
 - Colour picker
 - Undo and redo
 - Basic editor layout
@@ -18,6 +18,8 @@ The first Phase 2 editing tool is complete. Select the Eyedropper or press `I`, 
 Rectangle and Ellipse support Outline and Filled modes. Outline uses the selected colour and brush size; Filled uses the selected colour for the complete shape and ignores brush size. Dragging previews without changing pixels, and release commits the shape as one undoable action. A click creates one brush-sized outline stamp or one filled pixel.
 
 Filled-shape history stores the previous mixed RGBA rows as a bounded patch, allowing large shapes to undo exactly without per-pixel history or bitmap notifications. Separate outline and fill colours remain planned for a later primary/secondary colour milestone.
+
+Select the rectangular marquee or press `M`, then drag to create or replace a pixel-aligned selection. Dragging in any direction is supported, endpoints clip to the canvas, and a click selects one pixel. Press `Escape` to cancel an in-progress drag or clear the committed selection. The marquee is temporary editor state: it does not change pixels, create history, mark the document unsaved, or get stored in PNG files.
 
 Large-canvas brush and checkerboard rendering paths have been optimised, document dimensions are enforced consistently, and a headless Avalonia test suite exercises real pointer, keyboard, modal-dialog, and dirty-close workflows without opening desktop windows.
 

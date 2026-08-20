@@ -1,3 +1,4 @@
+using System;
 using Avalonia;
 
 namespace pixel_editor.Rendering;
@@ -35,5 +36,31 @@ internal static class CanvasCoordinateMapper
 
         coordinate = new PixelCoordinate(x, y);
         return true;
+    }
+
+    public static PixelCoordinate MapClamped(
+        Point pointerPosition,
+        CanvasLayoutResult layout,
+        int documentWidth,
+        int documentHeight)
+    {
+        if (documentWidth <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(documentWidth));
+        }
+
+        if (documentHeight <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(documentHeight));
+        }
+
+        var x = Math.Floor(
+            (pointerPosition.X - layout.Destination.X) / layout.PixelScale);
+        var y = Math.Floor(
+            (pointerPosition.Y - layout.Destination.Y) / layout.PixelScale);
+
+        return new PixelCoordinate(
+            (int)Math.Clamp(x, 0, documentWidth - 1),
+            (int)Math.Clamp(y, 0, documentHeight - 1));
     }
 }

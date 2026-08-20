@@ -78,6 +78,11 @@
                                  GroupName="EditorTools"
                                  IsChecked="{Binding IsEllipseSelected, Mode=OneWay}"
                                  Command="{Binding SelectEllipseCommand}" />
+                    <RadioButton Content="Selection (M)"
+                                 GroupName="EditorTools"
+                                 HotKey="M"
+                                 IsChecked="{Binding IsSelectionSelected, Mode=OneWay}"
+                                 Command="{Binding SelectSelectionCommand}" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal"
                             Spacing="8">
@@ -128,6 +133,7 @@
                               BrushSize="{Binding BrushSize}"
                               ActiveTool="{Binding ActiveTool}"
                               ShapeMode="{Binding ShapeMode}"
+                              Selection="{Binding Selection}"
                               History="{Binding History}"
                               Margin="24" />
 
@@ -141,7 +147,7 @@
                                Text="{Binding ActiveTool}" />
                     <TextBlock Margin="0,0,18,0"
                                Foreground="#E6E6E6"
-                               Text="· Alt/Option-click to sample · Drag to draw · Shift-drag brush for line" />
+                               Text="· Alt/Option-click to sample · Drag to draw/select · Shift-drag brush for line" />
                     <TextBlock Foreground="#AFAFAF"
                                Text="Pixel:" />
                     <TextBlock MinWidth="60"

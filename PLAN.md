@@ -4,7 +4,7 @@ This file tracks upcoming development. Completed technical decisions, trade-offs
 
 ## Current status
 
-The initial MVP and stability pass are complete. Phase 2 now includes exact colour sampling plus outline and single-colour filled rectangle and ellipse drawing.
+The initial MVP and stability pass are complete. Phase 2 now includes exact colour sampling, outline and single-colour filled shapes, and a non-destructive rectangular selection foundation.
 
 The next phase will improve everyday editing while retaining the current single-canvas document model.
 
@@ -45,12 +45,17 @@ Later shape colour enhancement:
 
 ### 3. Rectangular selection foundation
 
-- [ ] Add a UI-independent rectangular selection model.
-- [ ] Support creating, replacing, and clearing a marquee selection.
-- [ ] Use `Escape` to clear the active selection.
-- [ ] Render the marquee as an overlay without changing document pixels.
-- [ ] Keep selection-only changes out of document history and dirty-state tracking.
-- [ ] Test pointer mapping, reverse-direction selection, clipping, and zoom/pan alignment.
+- [x] Add a UI-independent rectangular selection model.
+- [x] Support creating, replacing, and clearing a marquee selection.
+- [x] Assign `M` as the rectangular marquee shortcut.
+- [x] Use `Escape` to cancel an active drag or clear the committed selection.
+- [x] Render the marquee as an overlay without changing document pixels.
+- [x] Keep selection-only changes out of document history and dirty-state tracking.
+- [x] Test pointer mapping, reverse-direction selection, clipping, and zoom/pan alignment.
+
+Future shortcut consideration:
+
+- [ ] Decide how selection modifier shortcuts should interact with existing tool shortcuts before adding combination modes. In particular, `Shift` is commonly used to add to a selection and `Alt`/`Option` to subtract, while this editor already uses `Shift` for straight lines and `Alt`/`Option` for temporary eyedropper sampling.
 
 ### 4. Selection editing and clipboard
 
@@ -128,7 +133,7 @@ Potential later work includes:
 
 - Palette and swatch management
 - Additional selection modes and transforms
-- Filled shapes and more drawing tools
+- More drawing tools
 - Layer opacity and blend modes
 - Animation and timeline support
 - Autosave and crash recovery

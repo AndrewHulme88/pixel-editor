@@ -107,4 +107,24 @@ public sealed class CanvasCoordinateMapperTests
         Assert.True(wasMapped);
         Assert.Equal(new PixelCoordinate(2, 1), coordinate);
     }
+
+    [Theory]
+    [InlineData(-100, -100, 0, 0)]
+    [InlineData(500, -100, 3, 0)]
+    [InlineData(-100, 500, 0, 2)]
+    [InlineData(500, 500, 3, 2)]
+    public void MapClamped_OutsideDocumentReturnsNearestEdgePixel(
+        double x,
+        double y,
+        int expectedX,
+        int expectedY)
+    {
+        var coordinate = CanvasCoordinateMapper.MapClamped(
+            new Point(x, y),
+            Layout,
+            4,
+            3);
+
+        Assert.Equal(new PixelCoordinate(expectedX, expectedY), coordinate);
+    }
 }
