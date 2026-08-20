@@ -10,6 +10,8 @@ public sealed class DocumentHistory
     private const int EstimatedHistoryEntryOverheadBytes = 128;
     private const int PixelChangePayloadBytes = 16;
     private const int PixelSpanPayloadBytes = 12;
+    private const int PixelPatchSpanPayloadBytes = 64;
+    private const int PixelColorPayloadBytes = 4;
 
     private readonly LinkedList<HistoryEntry> _undoEntries = new();
     private readonly LinkedList<HistoryEntry> _redoEntries = new();
@@ -114,6 +116,52 @@ public sealed class DocumentHistory
         var wasRecorded = PushChange(
             document,
             new UniformSpanHistoryChange(recordedSpans, previousColor, color));
+        Changed?.Invoke(this, EventArgs.Empty);
+        return wasRecorded;
+    }
+
+    public bool ApplyAndRecordUniformPatch(
+        PixelDocument document,
+        IReadOnlyList<PixelSpan> spans,
+        PixelColor color)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentNullException.ThrowIfNull(spans);
+
+        if (_activeChangeSet is not null)
+        {
+            throw new InvalidOperationException(
+                "A patch cannot be applied while another change set is active.");
+        }
+
+        var recordedSpans = new PixelSpan[spans.Count];
+        var patches = new PixelPatchSpan[spans.Count];
+        var hasChanges = false;
+
+        for (var index = 0; index < spans.Count; index++)
+        {
+            var span = spans[index];
+            ValidateSpan(document, span);
+            var previousColors = document.CopyPixelSpan(span);
+
+            foreach (var previousColor in previousColors)
+            {
+                hasChanges |= previousColor != color;
+            }
+
+            recordedSpans[index] = span;
+            patches[index] = new PixelPatchSpan(span, previousColors);
+        }
+
+        if (!hasChanges)
+        {
+            return false;
+        }
+
+        document.ApplyPixelSpans(recordedSpans, color);
+        var wasRecorded = PushChange(
+            document,
+            new UniformPatchHistoryChange(patches, recordedSpans, color));
         Changed?.Invoke(this, EventArgs.Empty);
         return wasRecorded;
     }
@@ -242,6 +290,10 @@ public sealed class DocumentHistory
         PixelColor PreviousColor,
         PixelColor Color);
 
+    private readonly record struct PixelPatchSpan(
+        PixelSpan Span,
+        PixelColor[] PreviousColors);
+
     private sealed record HistoryEntry(
         PixelDocument Document,
         IHistoryChange Change,
@@ -291,6 +343,34 @@ public sealed class DocumentHistory
 
         public void Undo(PixelDocument document) =>
             document.ApplyPixelSpans(Spans, PreviousColor);
+
+        public void Redo(PixelDocument document) =>
+            document.ApplyPixelSpans(Spans, Color);
+    }
+
+    private sealed record UniformPatchHistoryChange(
+        PixelPatchSpan[] Patches,
+        PixelSpan[] Spans,
+        PixelColor Color) : IHistoryChange
+    {
+        public long EstimatedMemoryBytes => Patches.Aggregate(
+            0L,
+            (total, patch) => checked(
+                total +
+                PixelPatchSpanPayloadBytes +
+                ((long)patch.PreviousColors.Length * PixelColorPayloadBytes)));
+
+        public void Undo(PixelDocument document)
+        {
+            foreach (var patch in Patches)
+            {
+                document.SetPixelSpanWithoutNotification(
+                    patch.Span,
+                    patch.PreviousColors);
+            }
+
+            document.NotifyPixelPatchChanged(Spans);
+        }
 
         public void Redo(PixelDocument document) =>
             document.ApplyPixelSpans(Spans, Color);

@@ -30,6 +30,9 @@ public partial class MainViewModel : ViewModelBase
     public IReadOnlyList<int> BrushSizeOptions { get; } =
         [1, 2, 3, 4, 5, 8, 12, 16, 24, 32, 48, 64];
 
+    public IReadOnlyList<ShapeDrawMode> ShapeDrawModeOptions { get; } =
+        [ShapeDrawMode.Outline, ShapeDrawMode.Filled];
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(WindowTitle))]
     public partial string DocumentName { get; private set; } = "Untitled";
@@ -40,6 +43,9 @@ public partial class MainViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial PixelColor BrushColor { get; set; } = new(49, 130, 206);
+
+    [ObservableProperty]
+    public partial ShapeDrawMode ShapeMode { get; set; } = ShapeDrawMode.Outline;
 
     public int BrushSize
     {
@@ -78,6 +84,7 @@ public partial class MainViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(IsEyedropperSelected))]
     [NotifyPropertyChangedFor(nameof(IsRectangleSelected))]
     [NotifyPropertyChangedFor(nameof(IsEllipseSelected))]
+    [NotifyPropertyChangedFor(nameof(IsShapeSelected))]
     public partial EditorTool ActiveTool { get; set; } = EditorTool.Brush;
 
     public bool IsBrushSelected => ActiveTool == EditorTool.Brush;
@@ -91,6 +98,8 @@ public partial class MainViewModel : ViewModelBase
     public bool IsRectangleSelected => ActiveTool == EditorTool.Rectangle;
 
     public bool IsEllipseSelected => ActiveTool == EditorTool.Ellipse;
+
+    public bool IsShapeSelected => ActiveTool is EditorTool.Rectangle or EditorTool.Ellipse;
 
     public bool CanUndo => History.CanUndo;
 

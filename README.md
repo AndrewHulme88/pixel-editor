@@ -15,7 +15,9 @@ A desktop pixel art editor built with C# and Avalonia.
 
 The first Phase 2 editing tool is complete. Select the Eyedropper or press `I`, then click any canvas pixel to copy its exact RGBA value into the colour picker. Hold `Alt` on Windows/Linux or `Option` on macOS while clicking to sample temporarily without changing the selected tool. Sampling does not edit the document, create an undo entry, or mark the document unsaved.
 
-Rectangle and Ellipse draw outlines using the selected colour and brush size. Drag to preview a shape without changing any pixels, then release to commit it as one undoable action. Clicking without dragging creates one brush-sized stamp. Filled shape modes remain intentionally deferred.
+Rectangle and Ellipse support Outline and Filled modes. Outline uses the selected colour and brush size; Filled uses the selected colour for the complete shape and ignores brush size. Dragging previews without changing pixels, and release commits the shape as one undoable action. A click creates one brush-sized outline stamp or one filled pixel.
+
+Filled-shape history stores the previous mixed RGBA rows as a bounded patch, allowing large shapes to undo exactly without per-pixel history or bitmap notifications. Separate outline and fill colours remain planned for a later primary/secondary colour milestone.
 
 Large-canvas brush and checkerboard rendering paths have been optimised, document dimensions are enforced consistently, and a headless Avalonia test suite exercises real pointer, keyboard, modal-dialog, and dirty-close workflows without opening desktop windows.
 
@@ -73,7 +75,7 @@ dotnet run --project pixel-editor.csproj
 
 ## Performance testing
 
-Performance benchmarks cover multiple brush sizes, maximum-canvas outline shapes, flood fill, undo history, canvas resizing, pixel-buffer conversion, and PNG persistence. Run them in Release mode:
+Performance benchmarks cover multiple brush sizes, maximum-canvas outline and filled-shape history, flood fill, undo history, canvas resizing, pixel-buffer conversion, and PNG persistence. Run them in Release mode:
 
 ```sh
 dotnet run -c Release --project benchmarks/PixelEditor.Benchmarks -- --filter "*"

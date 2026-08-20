@@ -44,6 +44,11 @@ public sealed class PixelCanvas : Control
             nameof(ActiveTool),
             EditorTool.Brush);
 
+    public static readonly StyledProperty<ShapeDrawMode> ShapeModeProperty =
+        AvaloniaProperty.Register<PixelCanvas, ShapeDrawMode>(
+            nameof(ShapeMode),
+            ShapeDrawMode.Outline);
+
     public static readonly StyledProperty<DocumentHistory?> HistoryProperty =
         AvaloniaProperty.Register<PixelCanvas, DocumentHistory?>(nameof(History));
 
@@ -106,6 +111,12 @@ public sealed class PixelCanvas : Control
     {
         get => GetValue(ActiveToolProperty);
         set => SetValue(ActiveToolProperty, value);
+    }
+
+    public ShapeDrawMode ShapeMode
+    {
+        get => GetValue(ShapeModeProperty);
+        set => SetValue(ShapeModeProperty, value);
     }
 
     public DocumentHistory? History
@@ -352,7 +363,9 @@ public sealed class PixelCanvas : Control
             SetHoveredPixel(null);
             RebuildBitmap();
         }
-        else if (change.Property == BrushSizeProperty || change.Property == ActiveToolProperty)
+        else if (change.Property == BrushSizeProperty ||
+                 change.Property == ActiveToolProperty ||
+                 change.Property == ShapeModeProperty)
         {
             InvalidateVisual();
         }
@@ -500,7 +513,7 @@ public sealed class PixelCanvas : Control
     private void BeginShape(IPointer pointer, PixelCoordinate coordinate)
     {
         _isDrawing = true;
-        _shapeGesture.Begin(ActiveTool, coordinate);
+        _shapeGesture.Begin(ActiveTool, ShapeMode, coordinate);
         SetHoveredPixel(coordinate);
         pointer.Capture(this);
         InvalidateVisual();
@@ -526,12 +539,18 @@ public sealed class PixelCanvas : Control
             return;
         }
 
+        if (shape.Mode == ShapeDrawMode.Filled)
+        {
+            PaintFilledShape(document, shape);
+            return;
+        }
+
         _activeHistory = History;
         _activeHistory?.BeginChangeSet(document);
 
         if (_bitmap is null)
         {
-            DrawShape(document, shape);
+            DrawOutlineShape(document, shape);
             return;
         }
 
@@ -541,7 +560,7 @@ public sealed class PixelCanvas : Control
 
             try
             {
-                DrawShape(document, shape);
+                DrawOutlineShape(document, shape);
             }
             finally
             {
@@ -552,7 +571,7 @@ public sealed class PixelCanvas : Control
         InvalidateVisual();
     }
 
-    private void DrawShape(PixelDocument document, ShapeGestureState shape)
+    private void DrawOutlineShape(PixelDocument document, ShapeGestureState shape)
     {
         var color = ToolColorResolver.Resolve(shape.Tool, BrushColor);
 
@@ -577,6 +596,35 @@ public sealed class PixelCanvas : Control
                 shape.End.Y,
                 color,
                 BrushSize);
+        }
+    }
+
+    private void PaintFilledShape(
+        PixelDocument document,
+        ShapeGestureState shape)
+    {
+        var spans = shape.Tool == EditorTool.Rectangle
+            ? FilledShapeTool.CreateRectangleSpans(
+                document,
+                shape.Start.X,
+                shape.Start.Y,
+                shape.End.X,
+                shape.End.Y)
+            : FilledShapeTool.CreateEllipseSpans(
+                document,
+                shape.Start.X,
+                shape.Start.Y,
+                shape.End.X,
+                shape.End.Y);
+        var color = ToolColorResolver.Resolve(shape.Tool, BrushColor);
+
+        if (History is { } history)
+        {
+            history.ApplyAndRecordUniformPatch(document, spans, color);
+        }
+        else
+        {
+            document.SetPixelSpans(spans, color);
         }
     }
 
@@ -688,6 +736,7 @@ public sealed class PixelCanvas : Control
         _strokeMode = BrushStrokeMode.Freehand;
         _activeHistory?.CommitChangeSet();
         _activeHistory = null;
+        InvalidateVisual();
     }
 
     private void SetHoveredPixel(PixelCoordinate? coordinate)
@@ -719,7 +768,9 @@ public sealed class PixelCanvas : Control
                 layout,
                 pixel.X,
                 pixel.Y,
-                ActiveTool is EditorTool.Fill or EditorTool.Eyedropper
+                ActiveTool is EditorTool.Fill or EditorTool.Eyedropper ||
+                (ActiveTool is EditorTool.Rectangle or EditorTool.Ellipse &&
+                 ShapeMode == ShapeDrawMode.Filled)
                     ? BrushTool.MinimumSize
                     : BrushSize,
                 Document!.Width,
@@ -760,6 +811,9 @@ public sealed class PixelCanvas : Control
 
         if (shape.Start == shape.End)
         {
+            var clickPreviewSize = shape.Mode == ShapeDrawMode.Filled
+                ? BrushTool.MinimumSize
+                : BrushSize;
             context.DrawRectangle(
                 HoverFill,
                 HoverOutline,
@@ -767,7 +821,7 @@ public sealed class PixelCanvas : Control
                     layout,
                     shape.Start.X,
                     shape.Start.Y,
-                    BrushSize,
+                    clickPreviewSize,
                     Document!.Width,
                     Document.Height));
             return;
@@ -786,7 +840,11 @@ public sealed class PixelCanvas : Control
             Math.Min(start.Y, end.Y),
             Math.Abs(end.X - start.X),
             Math.Abs(end.Y - start.Y));
-        var pen = new Pen(Brushes.White, Math.Max(1, BrushSize * layout.PixelScale));
+        var previewSize = shape.Mode == ShapeDrawMode.Filled
+            ? BrushTool.MinimumSize
+            : BrushSize;
+        var pen = new Pen(Brushes.White, Math.Max(1, previewSize * layout.PixelScale));
+        var fill = shape.Mode == ShapeDrawMode.Filled ? HoverFill : null;
 
         if (bounds.Width == 0 || bounds.Height == 0)
         {
@@ -796,11 +854,11 @@ public sealed class PixelCanvas : Control
 
         if (shape.Tool == EditorTool.Rectangle)
         {
-            context.DrawRectangle(null, pen, bounds);
+            context.DrawRectangle(fill, pen, bounds);
         }
         else
         {
-            context.DrawEllipse(null, pen, bounds);
+            context.DrawEllipse(fill, pen, bounds);
         }
     }
 
@@ -849,6 +907,7 @@ public sealed class PixelCanvas : Control
         {
             _subscribedDocument.PixelChanged -= OnPixelChanged;
             _subscribedDocument.PixelSpansChanged -= OnPixelSpansChanged;
+            _subscribedDocument.PixelPatchChanged -= OnPixelPatchChanged;
         }
 
         _subscribedDocument = document;
@@ -857,6 +916,7 @@ public sealed class PixelCanvas : Control
         {
             _subscribedDocument.PixelChanged += OnPixelChanged;
             _subscribedDocument.PixelSpansChanged += OnPixelSpansChanged;
+            _subscribedDocument.PixelPatchChanged += OnPixelPatchChanged;
         }
     }
 
@@ -910,6 +970,59 @@ public sealed class PixelCanvas : Control
                     (span.Y * framebuffer.RowBytes) +
                     (span.X * PixelBufferBuilder.BytesPerPixel));
                 var byteCount = span.Length * PixelBufferBuilder.BytesPerPixel;
+                Marshal.Copy(spanBuffer, 0, destination, byteCount);
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(spanBuffer);
+        }
+
+        InvalidateVisual();
+    }
+
+    private void OnPixelPatchChanged(object? sender, PixelPatchChangedEventArgs e)
+    {
+        if (_bitmap is null ||
+            Document is not { } document ||
+            !ReferenceEquals(sender, document) ||
+            e.Spans.Count == 0)
+        {
+            return;
+        }
+
+        var maximumLength = 0;
+
+        foreach (var span in e.Spans)
+        {
+            maximumLength = Math.Max(maximumLength, span.Length);
+        }
+
+        var maximumByteCount = checked(maximumLength * PixelBufferBuilder.BytesPerPixel);
+        var spanBuffer = ArrayPool<byte>.Shared.Rent(maximumByteCount);
+
+        try
+        {
+            using var framebuffer = _bitmap.Lock();
+
+            foreach (var span in e.Spans)
+            {
+                var byteCount = span.Length * PixelBufferBuilder.BytesPerPixel;
+                var pixels = spanBuffer.AsSpan(0, byteCount);
+
+                for (var offset = 0; offset < span.Length; offset++)
+                {
+                    PixelBufferBuilder.WritePremultipliedBgra(
+                        document.GetPixel(span.X + offset, span.Y),
+                        pixels.Slice(
+                            offset * PixelBufferBuilder.BytesPerPixel,
+                            PixelBufferBuilder.BytesPerPixel));
+                }
+
+                var destination = IntPtr.Add(
+                    framebuffer.Address,
+                    (span.Y * framebuffer.RowBytes) +
+                    (span.X * PixelBufferBuilder.BytesPerPixel));
                 Marshal.Copy(spanBuffer, 0, destination, byteCount);
             }
         }

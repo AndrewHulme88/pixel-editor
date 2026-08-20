@@ -199,11 +199,70 @@ public sealed class CanvasDrawingWorkflowTests
         window.Close();
     }
 
+    [AvaloniaTheory]
+    [InlineData((int)EditorTool.Rectangle)]
+    [InlineData((int)EditorTool.Ellipse)]
+    public void FilledShapeDrag_PreviewsThenRestoresMixedPixelsAsOneAction(int toolValue)
+    {
+        var tool = (EditorTool)toolValue;
+        var (window, canvas, document, history) = ShowCanvas(
+            tool,
+            width: 8,
+            height: 7,
+            shapeMode: ShapeDrawMode.Filled);
+        document.SetPixel(2, 2, new PixelColor(190, 40, 80, 220));
+        document.SetPixel(4, 3, new PixelColor(30, 170, 90, 100));
+        var originalPixels = CapturePixels(document);
+        var start = GetWindowPixelCentre(window, canvas, document, 1, 1);
+        var end = GetWindowPixelCentre(window, canvas, document, 6, 5);
+
+        window.MouseDown(start, MouseButton.Left, RawInputModifiers.LeftMouseButton);
+        window.MouseMove(end, RawInputModifiers.LeftMouseButton);
+
+        AssertDocumentMatches(document, originalPixels);
+        Assert.False(history.CanUndo);
+
+        window.MouseUp(end, MouseButton.Left, RawInputModifiers.None);
+
+        Assert.Equal(BrushColor, document.GetPixel(4, 3));
+        Assert.True(history.CanUndo);
+        Assert.True(history.Undo());
+        AssertDocumentMatches(document, originalPixels);
+        Assert.False(history.CanUndo);
+        Assert.True(history.Redo());
+        Assert.Equal(BrushColor, document.GetPixel(4, 3));
+        window.Close();
+    }
+
+    [AvaloniaTheory]
+    [InlineData((int)EditorTool.Rectangle)]
+    [InlineData((int)EditorTool.Ellipse)]
+    public void FilledShapeClick_PaintsOnePixelRegardlessOfBrushSize(int toolValue)
+    {
+        var tool = (EditorTool)toolValue;
+        var (window, canvas, document, history) = ShowCanvas(
+            tool,
+            width: 9,
+            height: 9,
+            brushSize: BrushTool.MaximumSize,
+            shapeMode: ShapeDrawMode.Filled);
+        var point = GetWindowPixelCentre(window, canvas, document, 4, 4);
+
+        window.MouseDown(point, MouseButton.Left, RawInputModifiers.LeftMouseButton);
+        window.MouseUp(point, MouseButton.Left, RawInputModifiers.None);
+
+        Assert.Equal(1, CountColoredPixels(document));
+        Assert.Equal(BrushColor, document.GetPixel(4, 4));
+        Assert.True(history.CanUndo);
+        window.Close();
+    }
+
     private static (Window, PixelCanvas, PixelDocument, DocumentHistory) ShowCanvas(
         EditorTool tool,
         int width = 4,
         int height = 4,
-        int brushSize = BrushTool.MinimumSize)
+        int brushSize = BrushTool.MinimumSize,
+        ShapeDrawMode shapeMode = ShapeDrawMode.Outline)
     {
         var document = new PixelDocument(width, height);
         var history = new DocumentHistory();
@@ -213,7 +272,8 @@ public sealed class CanvasDrawingWorkflowTests
             History = history,
             BrushColor = BrushColor,
             BrushSize = brushSize,
-            ActiveTool = tool
+            ActiveTool = tool,
+            ShapeMode = shapeMode
         };
         var window = new Window
         {
@@ -266,6 +326,34 @@ public sealed class CanvasDrawingWorkflowTests
             for (var x = 0; x < document.Width; x++)
             {
                 Assert.Equal(PixelColor.Transparent, document.GetPixel(x, y));
+            }
+        }
+    }
+
+    private static PixelColor[,] CapturePixels(PixelDocument document)
+    {
+        var pixels = new PixelColor[document.Width, document.Height];
+
+        for (var y = 0; y < document.Height; y++)
+        {
+            for (var x = 0; x < document.Width; x++)
+            {
+                pixels[x, y] = document.GetPixel(x, y);
+            }
+        }
+
+        return pixels;
+    }
+
+    private static void AssertDocumentMatches(
+        PixelDocument document,
+        PixelColor[,] expected)
+    {
+        for (var y = 0; y < document.Height; y++)
+        {
+            for (var x = 0; x < document.Width; x++)
+            {
+                Assert.Equal(expected[x, y], document.GetPixel(x, y));
             }
         }
     }

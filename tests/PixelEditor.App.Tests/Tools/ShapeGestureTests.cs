@@ -17,11 +17,13 @@ public sealed class ShapeGestureTests
         var start = new PixelCoordinate(5, 6);
         var end = new PixelCoordinate(2, 1);
 
-        gesture.Begin(tool, start);
+        gesture.Begin(tool, ShapeDrawMode.Filled, start);
         gesture.Update(end);
 
         Assert.True(gesture.IsActive);
-        Assert.Equal(new ShapeGestureState(tool, start, end), gesture.Current);
+        Assert.Equal(
+            new ShapeGestureState(tool, ShapeDrawMode.Filled, start, end),
+            gesture.Current);
 
         gesture.Cancel();
 
@@ -35,6 +37,21 @@ public sealed class ShapeGestureTests
         var gesture = new ShapeGesture();
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            gesture.Begin(EditorTool.Brush, new PixelCoordinate(1, 1)));
+            gesture.Begin(
+                EditorTool.Brush,
+                ShapeDrawMode.Outline,
+                new PixelCoordinate(1, 1)));
+    }
+
+    [Fact]
+    public void Begin_WithInvalidModeThrows()
+    {
+        var gesture = new ShapeGesture();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            gesture.Begin(
+                EditorTool.Rectangle,
+                (ShapeDrawMode)999,
+                new PixelCoordinate(1, 1)));
     }
 }

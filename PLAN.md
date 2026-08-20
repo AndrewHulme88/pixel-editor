@@ -4,7 +4,7 @@ This file tracks upcoming development. Completed technical decisions, trade-offs
 
 ## Current status
 
-The initial MVP and stability pass are complete. Phase 2 now includes exact colour sampling plus outline rectangle and ellipse drawing.
+The initial MVP and stability pass are complete. Phase 2 now includes exact colour sampling plus outline and single-colour filled rectangle and ellipse drawing.
 
 The next phase will improve everyday editing while retaining the current single-canvas document model.
 
@@ -30,8 +30,18 @@ Work through these milestones individually. Each milestone should include focuse
 - [x] Clip shapes safely at document boundaries.
 - [x] Test click-only, reverse-direction, edge, and maximum-size gestures.
 - [x] Add focused maximum-canvas benchmarks for both outline shapes.
+- [x] Add Outline and Filled modes using the current selected colour.
+- [x] Keep brush size specific to Outline mode.
+- [x] Store previous mixed-colour rows in bounded patch history for filled-shape undo.
+- [x] Test filled previews, single-pixel clicks, undo, redo, and exact colour restoration.
+- [x] Benchmark filled rectangle and ellipse patch history through 4096×4096.
 
-Filled rectangle and ellipse modes should be separate follow-up work so the first shape milestone remains small.
+Later shape colour enhancement:
+
+- [ ] Allow separate outline and fill colour selection.
+- [ ] Integrate those colours with a reusable primary/secondary colour model rather than adding a shape-only second colour picker.
+- [ ] Add an `Outline + Fill` mode while retaining the existing Outline-only and Filled-only modes.
+- [ ] Define transparent-fill and colour-swap behaviour before implementing the UI.
 
 ### 3. Rectangular selection foundation
 

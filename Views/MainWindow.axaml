@@ -100,6 +100,15 @@
                               ItemsSource="{Binding BrushSizeOptions}"
                               Text="{Binding BrushSizeText, Mode=TwoWay}"
                               LostFocus="BrushSizeSelector_OnLostFocus" />
+                    <TextBlock Margin="8,0,0,0"
+                               VerticalAlignment="Center"
+                               Foreground="#E6E6E6"
+                               Text="Mode:" />
+                    <ComboBox Width="92"
+                              x:Name="ShapeModeSelector"
+                              IsEnabled="{Binding IsShapeSelected}"
+                              ItemsSource="{Binding ShapeDrawModeOptions}"
+                              SelectedItem="{Binding ShapeMode, Mode=TwoWay}" />
                     <Border Width="1"
                             Height="24"
                             Margin="6,0"
@@ -118,6 +127,7 @@
                               BrushColor="{Binding BrushColor, Mode=TwoWay}"
                               BrushSize="{Binding BrushSize}"
                               ActiveTool="{Binding ActiveTool}"
+                              ShapeMode="{Binding ShapeMode}"
                               History="{Binding History}"
                               Margin="24" />
 

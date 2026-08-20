@@ -40,6 +40,11 @@ public sealed class MainViewModelTests
         Assert.False(viewModel.IsEyedropperSelected);
         Assert.False(viewModel.IsRectangleSelected);
         Assert.False(viewModel.IsEllipseSelected);
+        Assert.False(viewModel.IsShapeSelected);
+        Assert.Equal(ShapeDrawMode.Outline, viewModel.ShapeMode);
+        Assert.Equal(
+            [ShapeDrawMode.Outline, ShapeDrawMode.Filled],
+            viewModel.ShapeDrawModeOptions);
         Assert.Equal(1, viewModel.BrushSize);
         Assert.False(viewModel.IsDirty);
         Assert.Equal("Untitled - Pixel Editor", viewModel.WindowTitle);
@@ -109,6 +114,7 @@ public sealed class MainViewModelTests
         Assert.Equal(EditorTool.Rectangle, viewModel.ActiveTool);
         Assert.True(viewModel.IsRectangleSelected);
         Assert.False(viewModel.IsEllipseSelected);
+        Assert.True(viewModel.IsShapeSelected);
     }
 
     [Fact]
@@ -121,6 +127,7 @@ public sealed class MainViewModelTests
         Assert.Equal(EditorTool.Ellipse, viewModel.ActiveTool);
         Assert.False(viewModel.IsRectangleSelected);
         Assert.True(viewModel.IsEllipseSelected);
+        Assert.True(viewModel.IsShapeSelected);
     }
 
     [Fact]

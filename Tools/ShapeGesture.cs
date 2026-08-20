@@ -10,14 +10,22 @@ internal sealed class ShapeGesture
 
     public bool IsActive => Current is not null;
 
-    public void Begin(EditorTool tool, PixelCoordinate start)
+    public void Begin(
+        EditorTool tool,
+        ShapeDrawMode mode,
+        PixelCoordinate start)
     {
         if (tool is not EditorTool.Rectangle and not EditorTool.Ellipse)
         {
-            throw new ArgumentOutOfRangeException(nameof(tool), tool, "Tool must draw an outline shape.");
+            throw new ArgumentOutOfRangeException(nameof(tool), tool, "Tool must draw a shape.");
         }
 
-        Current = new ShapeGestureState(tool, start, start);
+        if (!Enum.IsDefined(mode))
+        {
+            throw new ArgumentOutOfRangeException(nameof(mode));
+        }
+
+        Current = new ShapeGestureState(tool, mode, start, start);
     }
 
     public void Update(PixelCoordinate end)
@@ -33,5 +41,6 @@ internal sealed class ShapeGesture
 
 internal readonly record struct ShapeGestureState(
     EditorTool Tool,
+    ShapeDrawMode Mode,
     PixelCoordinate Start,
     PixelCoordinate End);

@@ -9,6 +9,8 @@ public sealed class PixelDocument
 
     public event EventHandler<PixelSpansChangedEventArgs>? PixelSpansChanged;
 
+    public event EventHandler<PixelPatchChangedEventArgs>? PixelPatchChanged;
+
     public PixelDocument(int width, int height)
     {
         PixelDocumentLimits.ValidateDimensions(width, height);
@@ -36,6 +38,18 @@ public sealed class PixelDocument
 
         _pixels[index] = color;
         PixelChanged?.Invoke(this, new PixelChangedEventArgs(x, y, previousColor, color));
+    }
+
+    public void SetPixelSpans(IReadOnlyList<PixelSpan> spans, PixelColor color)
+    {
+        ArgumentNullException.ThrowIfNull(spans);
+
+        foreach (var span in spans)
+        {
+            ValidateSpan(span);
+        }
+
+        ApplyPixelSpans(spans, color);
     }
 
     internal void CopyRegionTo(
@@ -67,6 +81,20 @@ public sealed class PixelDocument
             span.Length);
     }
 
+    internal void SetPixelSpanWithoutNotification(
+        PixelSpan span,
+        ReadOnlySpan<PixelColor> colors)
+    {
+        colors.CopyTo(_pixels.AsSpan((span.Y * Width) + span.X, span.Length));
+    }
+
+    internal PixelColor[] CopyPixelSpan(PixelSpan span)
+    {
+        var colors = new PixelColor[span.Length];
+        _pixels.AsSpan((span.Y * Width) + span.X, span.Length).CopyTo(colors);
+        return colors;
+    }
+
     internal void ApplyPixelSpans(
         IReadOnlyList<PixelSpan> spans,
         PixelColor color)
@@ -86,6 +114,27 @@ public sealed class PixelDocument
         if (spans.Count > 0)
         {
             PixelSpansChanged?.Invoke(this, new PixelSpansChangedEventArgs(spans, color));
+        }
+    }
+
+    internal void NotifyPixelPatchChanged(IReadOnlyList<PixelSpan> spans)
+    {
+        if (spans.Count > 0)
+        {
+            PixelPatchChanged?.Invoke(this, new PixelPatchChangedEventArgs(spans));
+        }
+    }
+
+    private void ValidateSpan(PixelSpan span)
+    {
+        if (span.X < 0 ||
+            (uint)span.Y >= (uint)Height ||
+            span.Length <= 0 ||
+            span.X > Width - span.Length)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(span),
+                "Every span must fit within the document.");
         }
     }
 

@@ -104,6 +104,57 @@ public sealed class DocumentHistoryTests
     }
 
     [Fact]
+    public void UniformPatch_UndoRestoresMixedColorsAndRedoReappliesColor()
+    {
+        var document = new PixelDocument(5, 2);
+        var history = new DocumentHistory();
+        document.SetPixel(1, 0, Red);
+        document.SetPixel(2, 0, Blue);
+        document.SetPixel(3, 1, Blue);
+        PixelSpan[] spans = [new(1, 0, 3), new(2, 1, 2)];
+        var uniformNotificationCount = 0;
+        var patchNotificationCount = 0;
+        var pixelNotificationCount = 0;
+        document.PixelSpansChanged += (_, _) => uniformNotificationCount++;
+        document.PixelPatchChanged += (_, _) => patchNotificationCount++;
+        document.PixelChanged += (_, _) => pixelNotificationCount++;
+
+        Assert.True(history.ApplyAndRecordUniformPatch(document, spans, Red));
+        Assert.Equal(Red, document.GetPixel(1, 0));
+        Assert.Equal(Red, document.GetPixel(2, 0));
+        Assert.Equal(Red, document.GetPixel(3, 1));
+        Assert.Equal(1, uniformNotificationCount);
+
+        Assert.True(history.Undo());
+        Assert.Equal(Red, document.GetPixel(1, 0));
+        Assert.Equal(Blue, document.GetPixel(2, 0));
+        Assert.Equal(PixelColor.Transparent, document.GetPixel(3, 0));
+        Assert.Equal(PixelColor.Transparent, document.GetPixel(2, 1));
+        Assert.Equal(Blue, document.GetPixel(3, 1));
+        Assert.Equal(1, patchNotificationCount);
+
+        Assert.True(history.Redo());
+        Assert.Equal(Red, document.GetPixel(2, 0));
+        Assert.Equal(Red, document.GetPixel(3, 1));
+        Assert.Equal(2, uniformNotificationCount);
+        Assert.Equal(0, pixelNotificationCount);
+    }
+
+    [Fact]
+    public void UniformPatch_WithNoPixelChangesDoesNotCreateHistory()
+    {
+        var document = new PixelDocument(3, 1);
+        var history = new DocumentHistory();
+        PixelSpan[] spans = [new(0, 0, 3)];
+        document.SetPixelSpans(spans, Red);
+        var stateId = history.CurrentStateId;
+
+        Assert.False(history.ApplyAndRecordUniformPatch(document, spans, Red));
+        Assert.Equal(stateId, history.CurrentStateId);
+        Assert.False(history.CanUndo);
+    }
+
+    [Fact]
     public void RecordSpanChange_WithSpanOutsideDocument_Throws()
     {
         var document = new PixelDocument(4, 3);

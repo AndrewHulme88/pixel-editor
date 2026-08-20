@@ -170,7 +170,24 @@ Rectangle and ellipse rasterisation lives in `PixelEditor.Core` and applies the 
 
 `ShapeGesture` owns the active tool and start/end coordinates outside `PixelCanvas`. Pointer movement updates only this preview state; document mutation and history recording begin on release. The completed outline is painted while the canvas bitmap is locked once and is committed as one undo action. Losing pointer capture cancels an uncommitted preview.
 
-The preview is rendered as a vector overlay and never changes document pixels. Rectangle and Ellipse currently draw outlines only; filled variants remain separate follow-up work. Focused benchmarks cover both maximum-canvas outlines at brush sizes 1 and 64.
+The preview is rendered as a vector overlay and never changes document pixels. Focused benchmarks cover both maximum-canvas outlines at brush sizes 1 and 64.
+
+### D026: Filled shapes use uniform spans with mixed-colour patch history
+
+Rectangle and Ellipse expose Outline and Filled modes rather than adding more toolbar tools. Filled mode uses the current selected colour, ignores brush size, and produces one horizontal span for every affected row. Rectangle spans cover the inclusive drag bounds; ellipse spans fill between the left and right edges produced by the same integer rasteriser as the outline.
+
+A filled shape can replace many existing colours, so the uniform-colour fill history used by the bucket is insufficient for undo. `DocumentHistory.ApplyAndRecordUniformPatch` captures the previous RGBA row data, applies the new colour through bulk spans, and retains the operation as one bounded history entry. Undo restores the mixed rows through one patch notification, while redo reuses the smaller uniform span path. PixelCanvas handles both notifications under one bitmap lock without per-pixel events.
+
+A full 4096×4096 patch retains approximately 64 MiB of previous pixel data plus row metadata. It fits within the 128 MiB default history budget, but repeated full-canvas fills will evict older entries as designed. Benchmarks cover rectangle and ellipse apply, undo, and redo at 256, 1024, and 4096 pixels.
+
+Reference Dry benchmark smoke measurement on 20 August 2026, using an Apple M4 and .NET 10.0.9:
+
+- 4096×4096 rectangle apply, undo, and redo: approximately 37.8 ms and 64.2 MiB allocated.
+- 4096×4096 ellipse apply, undo, and redo: approximately 33.0 ms and 50.5 MiB allocated.
+
+These are one-iteration cold-start checks rather than statistically rigorous results. The spans are prepared before the measured operation, and the benchmark includes history notifications but excludes Avalonia bitmap conversion. Use the normal benchmark job on the same hardware and power profile for comparisons.
+
+Separate outline and fill colours are deferred until a reusable primary/secondary colour model is designed. This avoids introducing a shape-only second colour setting that would later conflict with palettes, transparent fill, and colour swapping.
 
 ## Performance findings and blockers
 
@@ -307,6 +324,7 @@ The headless suite currently covers:
 - Fill-tool clicks and undoing the fill as one action.
 - Eyedropper clicks across alpha values and the `I` shortcut-to-sample workflow.
 - Non-destructive rectangle and ellipse previews, click-only stamps, commit, and undo.
+- Filled rectangle and ellipse previews, mixed-colour undo restoration, redo, and brush-size independence.
 - Platform-aware undo and redo plus brush-size keyboard shortcuts.
 - Creating a document through the platform New shortcut and modal dialog.
 - New-document dialog values and all unsaved-changes dialog choices.
@@ -356,6 +374,7 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 24. Hardened PNG persistence with atomic local replacement and an encode-before-open fallback for virtual storage providers.
 25. Added exact RGBA eyedropper sampling with the `I` shortcut and non-editing workflow coverage.
 26. Added outline rectangle and ellipse tools with deferred previews, sparse raster coverage, one-action history, and maximum-canvas benchmarks.
+27. Added single-colour Filled shape mode with row-span rasterisation, bounded mixed-colour patch history, and maximum-canvas benchmarks.
 
 ## Deferred or open decisions
 
