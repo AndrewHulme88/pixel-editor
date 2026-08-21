@@ -19,7 +19,7 @@ Rectangle and Ellipse support Outline and Filled modes. Outline uses the selecte
 
 Filled-shape history stores the previous mixed RGBA rows as a bounded patch, allowing large shapes to undo exactly without per-pixel history or bitmap notifications. Separate outline and fill colours remain planned for a later primary/secondary colour milestone.
 
-Select the rectangular marquee or press `M`, then drag to create or replace a pixel-aligned selection. Dragging in any direction is supported, endpoints clip to the canvas, and a click selects one pixel. Press `Escape` to cancel an in-progress drag or clear the committed selection. The marquee is temporary editor state: it does not change pixels, create history, mark the document unsaved, or get stored in PNG files.
+Select the rectangular marquee or press `M`, then drag to create or replace a pixel-aligned selection. Hold `Shift` before dragging to add a region, or `Shift+Alt` on Windows/Linux and `Shift+Option` on macOS to subtract one. `Alt`/`Option` without Shift remains temporary eyedropper sampling. Combined selections can contain disconnected areas and holes, and the marquee follows their exact boundaries. Dragging in any direction is supported, endpoints clip to the canvas, and a click selects one pixel. Press `Escape` to cancel an in-progress drag or clear the committed selection. Selection changes do not affect pixels, history, dirty state, or PNG files.
 
 Large-canvas brush and checkerboard rendering paths have been optimised, document dimensions are enforced consistently, and a headless Avalonia test suite exercises real pointer, keyboard, modal-dialog, and dirty-close workflows without opening desktop windows.
 
@@ -77,7 +77,7 @@ dotnet run --project pixel-editor.csproj
 
 ## Performance testing
 
-Performance benchmarks cover multiple brush sizes, maximum-canvas outline and filled-shape history, flood fill, undo history, canvas resizing, pixel-buffer conversion, and PNG persistence. Run them in Release mode:
+Performance benchmarks cover multiple brush sizes, maximum-canvas outline and filled-shape history, packed selection operations, flood fill, undo history, canvas resizing, pixel-buffer conversion, and PNG persistence. Run them in Release mode:
 
 ```sh
 dotnet run -c Release --project benchmarks/PixelEditor.Benchmarks -- --filter "*"

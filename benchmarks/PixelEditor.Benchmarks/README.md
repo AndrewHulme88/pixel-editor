@@ -6,6 +6,7 @@ These benchmarks measure operations that sit on the editor's active drawing path
 - Maximum-length size-64 brush strokes on a 4096×4096 document
 - Maximum-canvas outline rectangles and ellipses at brush sizes 1 and 64
 - Filled rectangle and ellipse apply, undo, and redo through multi-colour patch history
+- Packed selection replacement, subtraction, restoration, and outline generation through the maximum canvas size
 - The removed checkerboard cell-enumeration workload at large visible sizes
 - Flood-filling solid regions at representative canvas sizes
 - Recording, undoing, and redoing fills up to the maximum 4096×4096 canvas size
@@ -32,6 +33,7 @@ Use `FillHistoryBenchmarks` to measure the complete fill history path, including
 Use `MaximumBrushStrokeBenchmarks` to isolate the maximum horizontal and diagonal brush workload.
 Use `OutlineShapeToolBenchmarks` to compare maximum-canvas rectangle and ellipse outlines.
 Use `FilledShapeHistoryBenchmarks` to measure filled-shape patch history through the maximum canvas size.
+Use `PixelSelectionBenchmarks` to measure packed selection operations through the maximum canvas size.
 Use `HistoryMemoryLimitBenchmarks` to measure the cost of evicting old undo entries under sustained editing.
 Use `CheckerboardRenderBenchmarks` to measure the CPU enumeration avoided by tiled checkerboard rendering. It is a reference workload and does not measure Avalonia's rendering backend.
 

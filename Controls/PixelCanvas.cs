@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
@@ -53,11 +54,13 @@ public sealed class PixelCanvas : Control
     public static readonly StyledProperty<DocumentHistory?> HistoryProperty =
         AvaloniaProperty.Register<PixelCanvas, DocumentHistory?>(nameof(History));
 
-    public static readonly StyledProperty<RectangularSelection?> SelectionProperty =
-        AvaloniaProperty.Register<PixelCanvas, RectangularSelection?>(nameof(Selection));
+    public static readonly StyledProperty<PixelSelection?> SelectionProperty =
+        AvaloniaProperty.Register<PixelCanvas, PixelSelection?>(nameof(Selection));
 
     private static readonly IPen CanvasBorder = new Pen(new SolidColorBrush(Color.FromRgb(96, 96, 96)));
     private static readonly IBrush HoverFill = new SolidColorBrush(Color.FromArgb(48, 255, 255, 255));
+    private static readonly IBrush SelectionAddFill = new SolidColorBrush(Color.FromArgb(48, 80, 220, 120));
+    private static readonly IBrush SelectionSubtractFill = new SolidColorBrush(Color.FromArgb(48, 235, 90, 90));
     private static readonly IPen HoverOutline = new Pen(Brushes.White, 1);
     private static readonly IPen SelectionBorder = new Pen(Brushes.Black, 1);
     private static readonly IPen SelectionDashes = new Pen(Brushes.White, 1, DashStyle.Dash);
@@ -68,7 +71,8 @@ public sealed class PixelCanvas : Control
     private readonly ShapeGesture _shapeGesture = new();
     private readonly SelectionGesture _selectionGesture = new();
     private PixelDocument? _subscribedDocument;
-    private RectangularSelection? _subscribedSelection;
+    private PixelSelection? _subscribedSelection;
+    private IReadOnlyList<SelectionOutlineSegment> _selectionOutline = [];
     private IPointer? _selectionPointer;
     private PixelCoordinate? _hoveredPixel;
     private PixelCoordinate? _lastPaintedPixel;
@@ -134,7 +138,7 @@ public sealed class PixelCanvas : Control
         set => SetValue(HistoryProperty, value);
     }
 
-    public RectangularSelection? Selection
+    public PixelSelection? Selection
     {
         get => GetValue(SelectionProperty);
         set => SetValue(SelectionProperty, value);
@@ -281,6 +285,24 @@ public sealed class PixelCanvas : Control
 
         Focus(NavigationMethod.Pointer);
 
+        if (ActiveTool == EditorTool.Selection)
+        {
+            if (SelectionInputResolver.ShouldSampleColor(e.KeyModifiers))
+            {
+                SampleColorAt(document, coordinate);
+            }
+            else
+            {
+                BeginSelection(
+                    e.Pointer,
+                    coordinate,
+                    SelectionInputResolver.ResolveCombineMode(e.KeyModifiers));
+            }
+
+            e.Handled = true;
+            return;
+        }
+
         if (ActiveTool == EditorTool.Eyedropper ||
             (e.KeyModifiers & KeyModifiers.Alt) != 0)
         {
@@ -292,13 +314,6 @@ public sealed class PixelCanvas : Control
         if (ActiveTool == EditorTool.Fill)
         {
             FillAt(document, coordinate);
-            e.Handled = true;
-            return;
-        }
-
-        if (ActiveTool == EditorTool.Selection)
-        {
-            BeginSelection(e.Pointer, coordinate);
             e.Handled = true;
             return;
         }
@@ -593,10 +608,13 @@ public sealed class PixelCanvas : Control
         InvalidateVisual();
     }
 
-    private void BeginSelection(IPointer pointer, PixelCoordinate coordinate)
+    private void BeginSelection(
+        IPointer pointer,
+        PixelCoordinate coordinate,
+        SelectionCombineMode combineMode)
     {
         _isDrawing = true;
-        _selectionGesture.Begin(coordinate);
+        _selectionGesture.Begin(coordinate, combineMode);
         _selectionPointer = pointer;
         SetHoveredPixel(coordinate);
         pointer.Capture(this);
@@ -622,20 +640,20 @@ public sealed class PixelCanvas : Control
 
     private void CommitSelection()
     {
-        if (Document is not { } document ||
-            Selection is not { } selection ||
+        if (Selection is not { } selection ||
             _selectionGesture.Current is not { } gesture)
         {
             return;
         }
 
-        selection.SelectFromInclusiveCorners(
+        var bounds = PixelSelectionBounds.FromInclusiveCorners(
             gesture.Start.X,
             gesture.Start.Y,
             gesture.End.X,
             gesture.End.Y,
-            document.Width,
-            document.Height);
+            selection.Width,
+            selection.Height);
+        selection.ApplyRectangle(bounds, gesture.CombineMode);
     }
 
     private void UpdateShapeEnd(Point pointerPosition)
@@ -902,15 +920,17 @@ public sealed class PixelCanvas : Control
         DrawingContext context,
         CanvasLayoutResult layout)
     {
-        if (_selectionGesture.IsActive || Selection?.Bounds is not { } bounds)
+        if (_selectionGesture.Current is { CombineMode: SelectionCombineMode.Replace })
         {
             return;
         }
 
-        DrawSelectionBounds(
-            context,
-            SelectionRenderLayout.Calculate(bounds, layout),
-            null);
+        foreach (var outlineSegment in _selectionOutline)
+        {
+            var segment = SelectionRenderLayout.Calculate(outlineSegment, layout);
+            context.DrawLine(SelectionBorder, segment.Start, segment.End);
+            context.DrawLine(SelectionDashes, segment.Start, segment.End);
+        }
     }
 
     private void DrawSelectionGuide(
@@ -934,7 +954,12 @@ public sealed class PixelCanvas : Control
         DrawSelectionBounds(
             context,
             SelectionRenderLayout.Calculate(bounds, layout),
-            HoverFill);
+            gesture.CombineMode switch
+            {
+                SelectionCombineMode.Add => SelectionAddFill,
+                SelectionCombineMode.Subtract => SelectionSubtractFill,
+                _ => HoverFill
+            });
     }
 
     private static void DrawSelectionBounds(
@@ -1089,7 +1114,7 @@ public sealed class PixelCanvas : Control
         }
     }
 
-    private void SubscribeToSelection(RectangularSelection? selection)
+    private void SubscribeToSelection(PixelSelection? selection)
     {
         if (ReferenceEquals(_subscribedSelection, selection))
         {
@@ -1107,15 +1132,23 @@ public sealed class PixelCanvas : Control
         {
             _subscribedSelection.Changed += OnSelectionChanged;
         }
+
+        RebuildSelectionOutline();
     }
 
     private void OnSelectionChanged(object? sender, EventArgs e)
     {
         if (ReferenceEquals(sender, Selection))
         {
+            RebuildSelectionOutline();
             InvalidateVisual();
         }
     }
+
+    private void RebuildSelectionOutline() =>
+        _selectionOutline = Selection is { } selection
+            ? SelectionOutlineBuilder.Create(selection)
+            : [];
 
     private void OnPixelChanged(object? sender, PixelChangedEventArgs e)
     {

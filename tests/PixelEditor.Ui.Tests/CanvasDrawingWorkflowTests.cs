@@ -304,10 +304,100 @@ public sealed class CanvasDrawingWorkflowTests
     }
 
     [AvaloniaFact]
+    public void ShiftDrag_AddsDisconnectedSelectionWithoutEditingDocument()
+    {
+        var (window, canvas, document, history) = ShowCanvas(
+            EditorTool.Selection,
+            width: 8,
+            height: 7);
+        var firstStart = GetWindowPixelCentre(window, canvas, document, 1, 1);
+        var firstEnd = GetWindowPixelCentre(window, canvas, document, 3, 3);
+        var addStart = GetWindowPixelCentre(window, canvas, document, 5, 3);
+        var addEnd = GetWindowPixelCentre(window, canvas, document, 6, 4);
+        var addModifiers = RawInputModifiers.LeftMouseButton | RawInputModifiers.Shift;
+
+        window.MouseDown(firstStart, MouseButton.Left, RawInputModifiers.LeftMouseButton);
+        window.MouseUp(firstEnd, MouseButton.Left, RawInputModifiers.None);
+
+        window.MouseDown(addStart, MouseButton.Left, addModifiers);
+        window.MouseMove(addEnd, addModifiers);
+
+        Assert.Equal(9, canvas.Selection!.SelectedPixelCount);
+
+        window.MouseUp(addEnd, MouseButton.Left, RawInputModifiers.Shift);
+
+        Assert.Equal(13, canvas.Selection.SelectedPixelCount);
+        Assert.Equal(new PixelSelectionBounds(1, 1, 6, 4), canvas.Selection.Bounds);
+        Assert.True(canvas.Selection.Contains(1, 1));
+        Assert.True(canvas.Selection.Contains(6, 4));
+        Assert.False(canvas.Selection.Contains(4, 3));
+        AssertDocumentIsTransparent(document);
+        Assert.False(history.CanUndo);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void ShiftAltDrag_SubtractsSelectionWithoutSamplingColor()
+    {
+        var (window, canvas, document, history) = ShowCanvas(
+            EditorTool.Selection,
+            width: 8,
+            height: 7);
+        var firstStart = GetWindowPixelCentre(window, canvas, document, 1, 1);
+        var firstEnd = GetWindowPixelCentre(window, canvas, document, 6, 5);
+        var subtractStart = GetWindowPixelCentre(window, canvas, document, 3, 2);
+        var subtractEnd = GetWindowPixelCentre(window, canvas, document, 4, 4);
+        var subtractModifiers = RawInputModifiers.LeftMouseButton |
+                                RawInputModifiers.Shift |
+                                RawInputModifiers.Alt;
+
+        window.MouseDown(firstStart, MouseButton.Left, RawInputModifiers.LeftMouseButton);
+        window.MouseUp(firstEnd, MouseButton.Left, RawInputModifiers.None);
+        window.MouseDown(subtractStart, MouseButton.Left, subtractModifiers);
+        window.MouseMove(subtractEnd, subtractModifiers);
+        window.MouseUp(
+            subtractEnd,
+            MouseButton.Left,
+            RawInputModifiers.Shift | RawInputModifiers.Alt);
+
+        Assert.Equal(24, canvas.Selection!.SelectedPixelCount);
+        Assert.Equal(new PixelSelectionBounds(1, 1, 6, 5), canvas.Selection.Bounds);
+        Assert.True(canvas.Selection.Contains(1, 1));
+        Assert.False(canvas.Selection.Contains(3, 2));
+        Assert.False(canvas.Selection.Contains(4, 4));
+        Assert.Equal(BrushColor, canvas.BrushColor);
+        AssertDocumentIsTransparent(document);
+        Assert.False(history.CanUndo);
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void AltClick_WithSelectionToolSamplesColorWithoutChangingSelection()
+    {
+        var (window, canvas, document, history) = ShowCanvas(EditorTool.Selection);
+        var sampledColor = new PixelColor(180, 70, 210, 120);
+        document.SetPixel(3, 3, sampledColor);
+        canvas.Selection!.ReplaceRectangle(new PixelSelectionBounds(0, 0, 2, 2));
+        var selectionBounds = canvas.Selection.Bounds;
+        var selectedPixelCount = canvas.Selection.SelectedPixelCount;
+        var point = GetWindowPixelCentre(window, canvas, document, 3, 3);
+        var sampleModifiers = RawInputModifiers.LeftMouseButton | RawInputModifiers.Alt;
+
+        window.MouseDown(point, MouseButton.Left, sampleModifiers);
+        window.MouseUp(point, MouseButton.Left, RawInputModifiers.Alt);
+
+        Assert.Equal(sampledColor, canvas.BrushColor);
+        Assert.Equal(selectionBounds, canvas.Selection.Bounds);
+        Assert.Equal(selectedPixelCount, canvas.Selection.SelectedPixelCount);
+        Assert.False(history.CanUndo);
+        window.Close();
+    }
+
+    [AvaloniaFact]
     public void CancellingSelectionDrag_PreservesCommittedSelection()
     {
         var (window, canvas, document, _) = ShowCanvas(EditorTool.Selection);
-        canvas.Selection!.SelectFromInclusiveCorners(0, 0, 1, 1, 4, 4);
+        canvas.Selection!.ReplaceRectangleFromInclusiveCorners(0, 0, 1, 1);
         var start = GetWindowPixelCentre(window, canvas, document, 3, 3);
         var end = GetWindowPixelCentre(window, canvas, document, 2, 2);
 
@@ -341,7 +431,7 @@ public sealed class CanvasDrawingWorkflowTests
         {
             Document = document,
             History = history,
-            Selection = new RectangularSelection(),
+            Selection = new PixelSelection(width, height),
             BrushColor = BrushColor,
             BrushSize = brushSize,
             ActiveTool = tool,

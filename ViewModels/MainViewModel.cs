@@ -19,7 +19,7 @@ public partial class MainViewModel : ViewModelBase
     {
         Document = new PixelDocument(16, 16);
         History = new DocumentHistory();
-        Selection = new RectangularSelection();
+        Selection = new PixelSelection(Document.Width, Document.Height);
         _savedHistoryStateId = History.CurrentStateId;
         History.Changed += OnHistoryChanged;
     }
@@ -29,7 +29,7 @@ public partial class MainViewModel : ViewModelBase
 
     public DocumentHistory History { get; }
 
-    public RectangularSelection Selection { get; }
+    public PixelSelection Selection { get; }
 
     public IReadOnlyList<int> BrushSizeOptions { get; } =
         [1, 2, 3, 4, 5, 8, 12, 16, 24, 32, 48, 64];
@@ -153,7 +153,7 @@ public partial class MainViewModel : ViewModelBase
         ArgumentException.ThrowIfNullOrWhiteSpace(documentName);
 
         History.Clear();
-        Selection.Clear();
+        Selection.ResetCanvas(document.Width, document.Height);
         Document = document;
         DocumentName = documentName;
         _savedHistoryStateId = History.CurrentStateId;
@@ -165,7 +165,7 @@ public partial class MainViewModel : ViewModelBase
         var document = new PixelDocument(width, height);
 
         History.Clear();
-        Selection.Clear();
+        Selection.ResetCanvas(document.Width, document.Height);
         Document = document;
         DocumentName = "Untitled";
         _savedHistoryStateId = null;
@@ -182,7 +182,7 @@ public partial class MainViewModel : ViewModelBase
         var resized = PixelDocumentResizer.Resize(Document, width, height, anchor);
 
         History.Clear();
-        Selection.Clear();
+        Selection.ResetCanvas(resized.Width, resized.Height);
         Document = resized;
         _savedHistoryStateId = null;
         UpdateDirtyState();

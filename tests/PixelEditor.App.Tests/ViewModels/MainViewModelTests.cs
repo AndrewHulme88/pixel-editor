@@ -151,13 +151,11 @@ public sealed class MainViewModelTests
         var viewModel = new MainViewModel();
         var historyStateId = viewModel.History.CurrentStateId;
 
-        viewModel.Selection.SelectFromInclusiveCorners(
+        viewModel.Selection.ReplaceRectangleFromInclusiveCorners(
             2,
             3,
             7,
-            9,
-            viewModel.Document.Width,
-            viewModel.Document.Height);
+            9);
         viewModel.SelectBrushCommand.Execute(null);
 
         Assert.True(viewModel.Selection.HasSelection);
@@ -199,7 +197,7 @@ public sealed class MainViewModelTests
         viewModel.History.BeginChangeSet(viewModel.Document);
         viewModel.Document.SetPixel(0, 0, viewModel.BrushColor);
         viewModel.History.CommitChangeSet();
-        viewModel.Selection.SelectFromInclusiveCorners(0, 0, 1, 1, 16, 16);
+        viewModel.Selection.ReplaceRectangleFromInclusiveCorners(0, 0, 1, 1);
         Assert.True(viewModel.CanUndo);
 
         viewModel.ReplaceDocument(replacement, "opened.png");
@@ -210,6 +208,8 @@ public sealed class MainViewModelTests
         Assert.False(viewModel.CanUndo);
         Assert.False(viewModel.CanRedo);
         Assert.False(viewModel.Selection.HasSelection);
+        Assert.Equal(3, viewModel.Selection.Width);
+        Assert.Equal(2, viewModel.Selection.Height);
         Assert.Contains(nameof(MainViewModel.Document), changedProperties);
     }
 
@@ -226,7 +226,7 @@ public sealed class MainViewModelTests
     {
         var viewModel = new MainViewModel();
         RecordPixelEdit(viewModel, 0, 0);
-        viewModel.Selection.SelectFromInclusiveCorners(0, 0, 1, 1, 16, 16);
+        viewModel.Selection.ReplaceRectangleFromInclusiveCorners(0, 0, 1, 1);
 
         viewModel.CreateNewDocument(24, 18);
 
@@ -239,6 +239,8 @@ public sealed class MainViewModelTests
         Assert.False(viewModel.CanUndo);
         Assert.False(viewModel.CanRedo);
         Assert.False(viewModel.Selection.HasSelection);
+        Assert.Equal(24, viewModel.Selection.Width);
+        Assert.Equal(18, viewModel.Selection.Height);
     }
 
     [Theory]
@@ -264,7 +266,7 @@ public sealed class MainViewModelTests
         var viewModel = new MainViewModel();
         viewModel.MarkDocumentSaved("art.png");
         RecordPixelEdit(viewModel, 0, 0);
-        viewModel.Selection.SelectFromInclusiveCorners(0, 0, 1, 1, 16, 16);
+        viewModel.Selection.ReplaceRectangleFromInclusiveCorners(0, 0, 1, 1);
         var retainedColor = viewModel.Document.GetPixel(0, 0);
 
         var wasResized = viewModel.ResizeDocument(20, 18, CanvasAnchor.TopLeft);
@@ -278,6 +280,8 @@ public sealed class MainViewModelTests
         Assert.False(viewModel.CanUndo);
         Assert.False(viewModel.CanRedo);
         Assert.False(viewModel.Selection.HasSelection);
+        Assert.Equal(20, viewModel.Selection.Width);
+        Assert.Equal(18, viewModel.Selection.Height);
     }
 
     [Fact]
@@ -286,7 +290,7 @@ public sealed class MainViewModelTests
         var viewModel = new MainViewModel();
         RecordPixelEdit(viewModel, 0, 0);
         viewModel.MarkDocumentSaved("art.png");
-        viewModel.Selection.SelectFromInclusiveCorners(0, 0, 1, 1, 16, 16);
+        viewModel.Selection.ReplaceRectangleFromInclusiveCorners(0, 0, 1, 1);
         var original = viewModel.Document;
 
         var wasResized = viewModel.ResizeDocument(

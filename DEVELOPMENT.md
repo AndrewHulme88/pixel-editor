@@ -191,15 +191,48 @@ Separate outline and fill colours are deferred until a reusable primary/secondar
 
 ### D027: Rectangular selection is transient editor state
 
-The selection model lives in `PixelEditor.Core` but remains separate from `PixelDocument`. Bounds use `X`, `Y`, `Width`, and `Height` with exclusive right and bottom edges. Pointer gestures use inclusive start and end pixels, then normalise, clip, and convert them when committed. This makes reverse dragging, one-pixel selections, and the document's right and bottom edges unambiguous.
+The selection model lives in `PixelEditor.Core` but remains separate from `PixelDocument`. Cached outer bounds use `X`, `Y`, `Width`, and `Height` with exclusive right and bottom edges. Pointer gestures use inclusive start and end pixels, then normalise, clip, and convert them when committed. This makes reverse dragging, one-pixel selections, and the document's right and bottom edges unambiguous.
 
 `SelectionGesture` owns the active drag coordinates. During a drag, `PixelCanvas` renders a temporary overlay and leaves the previous committed selection unchanged; release replaces it, while `Escape` cancels the drag and preserves the previous selection. A second `Escape` clears the committed selection. The static marquee uses contrasting solid and dashed outlines and is mapped through the same zoomed and panned canvas layout as document pixels.
 
 Selection changes do not mutate pixels, enter undo history, affect dirty state, or get stored in PNG files. They persist when switching tools or changing the viewport and clear when New, Open, or a real canvas resize replaces the document. Selecting the current canvas size is a no-op, so it also preserves the selection.
 
-Creating or clearing selection bounds is constant-time and retains no pixel buffer, so a dedicated benchmark is not useful for this foundation. Later copy, paste, move, and delete operations will handle pixel data and require maximum-canvas memory and timing benchmarks.
+The first implementation retained only rectangular bounds. D028 supersedes that internal representation so combination modes and later irregular selection tools can preserve exact selected pixels.
 
-Future combination modes need an explicit shortcut decision before implementation. `Shift` and `Alt`/`Option` commonly mean add to and subtract from a selection, but the editor already uses `Shift` for straight lines and `Alt`/`Option` for temporary eyedropper sampling.
+### D028: Selection geometry uses a packed binary mask
+
+`PixelSelection` owns the canvas dimensions and stores one bit per pixel in contiguous 64-bit words. A 4096×4096 selection therefore retains exactly 2 MiB rather than approximately 16 MiB for a byte or Boolean per pixel. The allocation is reused when a selection is cleared and replaced, avoiding interaction-time buffer allocation.
+
+The model caches its selected-pixel count and outer bounds while retaining exact membership for disconnected areas and holes. Rectangle replacement, union, subtraction, and intersection operate on word-sized masks. Membership checks remain constant-time. Subtraction and intersection recalculate bounds by scanning packed words within the previous bounds rather than examining every selected pixel individually.
+
+Selection dimensions reset alongside New, Open, and actual canvas resize operations. The model remains outside document history, dirty-state tracking, and PNG persistence. D029 builds on this representation with combination gestures and exact contour rendering.
+
+The chosen contextual modifiers are `Shift` to add and `Shift+Alt`/`Shift+Option` to subtract while the Selection tool is active. `Alt`/`Option` alone remains temporary eyedropper sampling. Intersection is supported by the core model, but its UI and shortcut remain deferred.
+
+Reference Dry benchmark smoke measurement on 21 August 2026, using an Apple M4 and .NET 10.0.9:
+
+- Alternating full and inset replacement on 4096×4096: approximately 0.52 ms.
+- Subtracting and restoring the central region on 4096×4096: approximately 3.42 ms.
+- Neither measured operation allocated managed memory after setup.
+
+These are one-iteration cold-start checks rather than statistically rigorous results. Use the normal benchmark job on the same hardware and power profile for comparisons.
+
+### D029: Selection modifiers are contextual and contours are cached
+
+When the Selection tool is active, a drag replaces the selection, `Shift` adds, and `Shift+Alt`/`Shift+Option` subtracts. `Alt`/`Option` without Shift retains temporary eyedropper behaviour. The combine mode is resolved when the pointer is pressed and remains fixed for that gesture. Other tools retain their existing modifier behaviour, including Shift-drag straight lines for Brush and Eraser.
+
+Add and subtract gestures keep the committed marquee visible while displaying a green or red rectangular guide. The selection mask changes only on release. Replace gestures continue to hide the previous marquee during their neutral preview. Cancelling a gesture therefore preserves the previously committed selection in every mode.
+
+The marquee is no longer drawn from cached outer bounds. `PixelSelection` converts selected bits into horizontal spans, and `SelectionOutlineBuilder` compares adjacent rows to remove internal edges and merge continuous outer edges. The canvas rebuilds and caches these document-coordinate contour segments only when selection state changes. Normal redraws, zooming, and panning reuse the contour and only apply the current viewport mapping.
+
+Focused tests compare every unit contour edge with a reference mask containing holes and disconnected regions. Headless workflows cover Shift addition, Shift+Alt subtraction, Alt-only sampling, unchanged pixels, and unchanged history.
+
+Reference Dry benchmark smoke measurement on 21 August 2026, using an Apple M4 and .NET 10.0.9:
+
+- Building a four-segment outline for a full 4096×4096 selection: approximately 9.34 ms and 64.6 KiB allocated.
+- Building the outer and inner outlines for a 4096×4096 selection with a central hole: approximately 10.59 ms and 113.1 KiB allocated.
+
+Contour allocation occurs only when the selection changes; drawing and viewport changes reuse the cached result. These are one-iteration cold-start checks rather than statistically rigorous results.
 
 ## Performance findings and blockers
 
@@ -337,7 +370,7 @@ The headless suite currently covers:
 - Eyedropper clicks across alpha values and the `I` shortcut-to-sample workflow.
 - Non-destructive rectangle and ellipse previews, click-only stamps, commit, and undo.
 - Filled rectangle and ellipse previews, mixed-colour undo restoration, redo, and brush-size independence.
-- Rectangular selection reverse drags, click-only selections, cancellation, non-editing history behaviour, and the `M`/`Escape` workflow.
+- Rectangular selection reverse drags, click-only selections, cancellation, exact combined contours, Shift addition, Shift+Alt subtraction, Alt-only sampling, non-editing history behaviour, and the `M`/`Escape` workflow.
 - Platform-aware undo and redo plus brush-size keyboard shortcuts.
 - Creating a document through the platform New shortcut and modal dialog.
 - New-document dialog values and all unsaved-changes dialog choices.
@@ -389,6 +422,8 @@ Reviewed on 18 August 2026 after the first drawing, history, persistence, and ed
 26. Added outline rectangle and ellipse tools with deferred previews, sparse raster coverage, one-action history, and maximum-canvas benchmarks.
 27. Added single-colour Filled shape mode with row-span rasterisation, bounded mixed-colour patch history, and maximum-canvas benchmarks.
 28. Added a non-destructive rectangular selection foundation with pixel-aligned overlays, `M` and `Escape` shortcuts, and independent lifecycle and workflow coverage.
+29. Replaced rectangular-only selection state with a 2 MiB maximum packed mask, exact region set operations, cached bounds, boundary-focused tests, and maximum-canvas benchmarks.
+30. Added contextual selection addition and subtraction, retained Alt/Option sampling, and cached exact contours for disconnected regions and holes.
 
 ## Deferred or open decisions
 

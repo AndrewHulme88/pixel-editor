@@ -25,4 +25,25 @@ public sealed class SelectionRenderLayoutTests
         Assert.Equal(48, result.Width);
         Assert.Equal(24, result.Height);
     }
+
+    [Fact]
+    public void Calculate_AlignsOutlineSegmentWithZoomedAndPannedPixelEdges()
+    {
+        var layout = CanvasLayout.Calculate(
+            10,
+            8,
+            new Size(300, 240),
+            pixelScale: 12,
+            new Vector(17, -9));
+        var segment = new SelectionOutlineSegment(2, 3, 6, 3);
+
+        var result = SelectionRenderLayout.Calculate(segment, layout);
+
+        Assert.Equal(
+            new Point(layout.Destination.X + 24, layout.Destination.Y + 36),
+            result.Start);
+        Assert.Equal(
+            new Point(layout.Destination.X + 72, layout.Destination.Y + 36),
+            result.End);
+    }
 }

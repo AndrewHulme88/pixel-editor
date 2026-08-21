@@ -81,6 +81,7 @@
                     <RadioButton Content="Selection (M)"
                                  GroupName="EditorTools"
                                  HotKey="M"
+                                 ToolTip.Tip="Drag to replace. Hold Shift to add or Shift+Alt/Option to subtract."
                                  IsChecked="{Binding IsSelectionSelected, Mode=OneWay}"
                                  Command="{Binding SelectSelectionCommand}" />
                 </StackPanel>

@@ -1,4 +1,5 @@
 using pixel_editor.Rendering;
+using PixelEditor.Core.Selections;
 
 namespace pixel_editor.Tools;
 
@@ -8,8 +9,8 @@ internal sealed class SelectionGesture
 
     public bool IsActive => Current is not null;
 
-    public void Begin(PixelCoordinate start) =>
-        Current = new SelectionGestureState(start, start);
+    public void Begin(PixelCoordinate start, SelectionCombineMode combineMode) =>
+        Current = new SelectionGestureState(start, start, combineMode);
 
     public void Update(PixelCoordinate end)
     {
@@ -24,4 +25,5 @@ internal sealed class SelectionGesture
 
 internal readonly record struct SelectionGestureState(
     PixelCoordinate Start,
-    PixelCoordinate End);
+    PixelCoordinate End,
+    SelectionCombineMode CombineMode);

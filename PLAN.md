@@ -43,9 +43,9 @@ Later shape colour enhancement:
 - [ ] Add an `Outline + Fill` mode while retaining the existing Outline-only and Filled-only modes.
 - [ ] Define transparent-fill and colour-swap behaviour before implementing the UI.
 
-### 3. Rectangular selection foundation
+### 3. Selection foundation
 
-- [x] Add a UI-independent rectangular selection model.
+- [x] Add a UI-independent selection model.
 - [x] Support creating, replacing, and clearing a marquee selection.
 - [x] Assign `M` as the rectangular marquee shortcut.
 - [x] Use `Escape` to cancel an active drag or clear the committed selection.
@@ -53,9 +53,16 @@ Later shape colour enhancement:
 - [x] Keep selection-only changes out of document history and dirty-state tracking.
 - [x] Test pointer mapping, reverse-direction selection, clipping, and zoom/pan alignment.
 
-Future shortcut consideration:
+Selection combination groundwork:
 
-- [ ] Decide how selection modifier shortcuts should interact with existing tool shortcuts before adding combination modes. In particular, `Shift` is commonly used to add to a selection and `Alt`/`Option` to subtract, while this editor already uses `Shift` for straight lines and `Alt`/`Option` for temporary eyedropper sampling.
+- [x] Store arbitrary selected-pixel regions in a packed bit mask with cached bounds.
+- [x] Add tested rectangle replace, add, subtract, and intersect operations to the core model.
+- [x] Benchmark packed selection operations through 4096×4096.
+- [x] Keep `Alt`/`Option` alone available for temporary eyedropper sampling.
+- [x] Choose `Shift` for addition and `Shift+Alt`/`Shift+Option` for subtraction while the Selection tool is active.
+- [x] Render the true boundary of a combined, potentially non-rectangular selection.
+- [x] Connect the chosen add and subtract modifiers to the rectangular selection gesture.
+- [ ] Decide whether and how to expose intersection as a shortcut when the feature is needed.
 
 ### 4. Selection editing and clipboard
 
